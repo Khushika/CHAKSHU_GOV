@@ -270,7 +270,6 @@ const ReportingHistoryTable = ({ filters }: ReportingHistoryTableProps) => {
             name: `Evidence_${i + 1}.jpg`,
             size: Math.floor(Math.random() * 1000000) + 100000,
         uploadedAt: mockReport.submittedAt ? (mockReport.submittedAt instanceof Date ? mockReport.submittedAt.toISOString() : String(mockReport.submittedAt)) : mockReport.date,
-        uploadedAt: mockReport.submittedAt ? (mockReport.submittedAt instanceof Date ? mockReport.submittedAt.toISOString() : String(mockReport.submittedAt)) : mockReport.date,
           }))
         : [],
       statusHistory: [
