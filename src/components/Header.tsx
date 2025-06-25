@@ -68,7 +68,6 @@ const Header = () => {
     { to: "/mobile-app", label: t.header.mobileApp },
     { to: "/ai-features", label: t.header.aiFeatures },
     { to: "/guidelines", label: t.header.guidelines },
-    { to: "/profile", label: "Profile" },
     { to: "/help", label: t.header.help },
   ];
 
@@ -292,6 +291,17 @@ const Header = () => {
                           </div>
                           <div className="space-y-1">
                             <Link
+                              to="/profile"
+                              onClick={closeMobileMenu}
+                              className={`flex items-center py-2 px-3 rounded-lg text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus-visible-ring ${isRTL ? "flex-row-reverse" : ""}`}
+                            >
+                              <User
+                                className={`h-4 w-4 ${isRTL ? "ml-3" : "mr-3"}`}
+                                aria-hidden="true"
+                              />
+                              <span>Profile</span>
+                            </Link>
+                            <Link
                               to="/dashboard"
                               onClick={closeMobileMenu}
                               className={`flex items-center py-2 px-3 rounded-lg text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus-visible-ring ${isRTL ? "flex-row-reverse" : ""}`}
@@ -388,6 +398,19 @@ const Header = () => {
                       </p>
                     </div>
                     <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link
+                        to="/profile"
+                        className={`flex items-center ${isRTL ? "flex-row-reverse" : ""}`}
+                        role="menuitem"
+                      >
+                        <User
+                          className={`h-4 w-4 ${isRTL ? "ml-2" : "mr-2"}`}
+                          aria-hidden="true"
+                        />
+                        <span>Profile</span>
+                      </Link>
+                    </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link
                         to="/dashboard"
