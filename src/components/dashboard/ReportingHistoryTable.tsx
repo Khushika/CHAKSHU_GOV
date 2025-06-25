@@ -276,9 +276,7 @@ const ReportingHistoryTable = ({ filters }: ReportingHistoryTableProps) => {
       statusHistory: [
         {
           status: mockReport.status,
-          date:
           date: mockReport.updatedAt ? (mockReport.updatedAt instanceof Date ? mockReport.updatedAt.toISOString().split("T")[0] : String(mockReport.updatedAt).split("T")[0]) : mockReport.date,
-            mockReport.date,
           comments: `Report ${mockReport.status.toLowerCase()}`,
         },
       ],
