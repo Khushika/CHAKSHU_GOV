@@ -79,108 +79,69 @@ const ReportingHistoryTable = ({ filters }: ReportingHistoryTableProps) => {
     const now = new Date();
 
     if (filters.dateRange.preset && filters.dateRange.preset !== "all") {
-      let dateThreshold = new Date();
+      let cutoffDate = new Date();
       switch (filters.dateRange.preset) {
-        case "last7days":
-          dateThreshold.setDate(now.getDate() - 7);
+        case "7days":
+          cutoffDate.setDate(now.getDate() - 7);
           break;
-        case "last30days":
-          dateThreshold.setDate(now.getDate() - 30);
+        case "30days":
+          cutoffDate.setDate(now.getDate() - 30);
           break;
-        case "last90days":
-          dateThreshold.setDate(now.getDate() - 90);
+        case "90days":
+          cutoffDate.setDate(now.getDate() - 90);
           break;
-        case "last12months":
-          dateThreshold.setFullYear(now.getFullYear() - 1);
-          break;
-        case "lastyear":
-          dateThreshold.setFullYear(now.getFullYear() - 1);
+        case "1year":
+          cutoffDate.setFullYear(now.getFullYear() - 1);
           break;
         default:
-          dateThreshold = new Date(0); // No filter
+          cutoffDate = new Date(0);
       }
 
-      if (reportDate < dateThreshold) {
+      if (reportDate < cutoffDate) {
         return false;
       }
     }
 
-    // Custom date range filter
-    if (filters.dateRange.customStart || filters.dateRange.customEnd) {
-      if (
-        filters.dateRange.customStart &&
-        reportDate < filters.dateRange.customStart
-      ) {
-        return false;
-      }
-      if (
-        filters.dateRange.customEnd &&
-        reportDate > filters.dateRange.customEnd
-      ) {
-        return false;
-      }
+    // Status filter
+    if (filters.status.length > 0 && !filters.status.includes(report.status)) {
+      return false;
     }
 
-    // Status filter (case insensitive)
-    if (filters.status.length > 0) {
-      const matchesStatus = filters.status.some(
-        (status) =>
-          report.status.toLowerCase().includes(status.toLowerCase()) ||
-          status.toLowerCase().includes(report.status.toLowerCase()),
-      );
-      if (!matchesStatus) {
-        return false;
-      }
-    }
-
-    // Fraud types filter (case insensitive)
-    if (filters.fraudTypes.length > 0) {
-      const matchesFraudType = filters.fraudTypes.some(
-        (type) =>
-          report.type.toLowerCase().includes(type.toLowerCase()) ||
-          type.toLowerCase().includes(report.type.toLowerCase()),
-      );
-      if (!matchesFraudType) {
-        return false;
-      }
-    }
-
-    // Severity filter (maps to impact field)
-    if (filters.severity.length > 0) {
-      const matchesSeverity = filters.severity.some(
-        (severity) =>
-          report.impact.toLowerCase().includes(severity.toLowerCase()) ||
-          severity.toLowerCase().includes(report.impact.toLowerCase()),
-      );
-      if (!matchesSeverity) {
-        return false;
-      }
-    }
-
-    // Location filter (enhanced search)
-    if (filters.location && filters.location.trim()) {
-      const locationTerms = filters.location.toLowerCase().split(" ");
-      const reportLocation = report.location.toLowerCase();
-      const matchesLocation = locationTerms.every((term) =>
-        reportLocation.includes(term),
-      );
-      if (!matchesLocation) {
-        return false;
-      }
-    }
-
-    // Amount range filter (with null safety)
+    // Fraud type filter
     if (
-      filters.amountRange?.min &&
-      (report.amount || 0) < filters.amountRange.min
+      filters.fraudTypes.length > 0 &&
+      !filters.fraudTypes.includes(report.type)
     ) {
       return false;
     }
+
+    // Severity filter (using impact field)
     if (
-      filters.amountRange?.max &&
-      (report.amount || 0) > filters.amountRange.max
+      filters.severity.length > 0 &&
+      !filters.severity.includes(report.impact)
     ) {
       return false;
+    }
+
+    // Location filter
+    if (
+      filters.location &&
+      !report.location.toLowerCase().includes(filters.location.toLowerCase())
+    ) {
+      return false;
+    }
+
+    // Amount range filter
+    if (filters.amountRange.min !== undefined && report.amount) {
+      if (report.amount < filters.amountRange.min) {
+        return false;
+      }
+    }
+
+    if (filters.amountRange.max !== undefined && report.amount) {
+      if (report.amount > filters.amountRange.max) {
+        return false;
+      }
     }
 
     return true;
@@ -191,10 +152,7 @@ const ReportingHistoryTable = ({ filters }: ReportingHistoryTableProps) => {
     const aValue = a[sortConfig.key];
     const bValue = b[sortConfig.key];
 
-    if (aValue === undefined || aValue === null) return 1;
-    if (bValue === undefined || bValue === null) return -1;
-
-    // Handle different data types
+    // Handle date sorting specifically
     if (sortConfig.key === "date") {
       const aDate = new Date(aValue as string);
       const bDate = new Date(bValue as string);
@@ -262,18 +220,21 @@ const ReportingHistoryTable = ({ filters }: ReportingHistoryTableProps) => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `personal-reports-${new Date().toISOString().split("T")[0]}.csv`;
+    link.download = `fraud_reports_${new Date().toISOString().split("T")[0]}.csv`;
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
     toast({
       title: "Export Complete",
-      description: `Exported ${sortedReports.length} reports to CSV file.`,
+      description: "Your reporting data has been exported to CSV.",
     });
   };
 
-  const handleRefresh = async () => {
+  const handleRefreshData = async () => {
     setIsRefreshing(true);
+
     // Simulate refresh delay
     await new Promise((resolve) => setTimeout(resolve, 1000));
     setIsRefreshing(false);
@@ -284,8 +245,46 @@ const ReportingHistoryTable = ({ filters }: ReportingHistoryTableProps) => {
     });
   };
 
-  const handleViewDetails = (report: Report) => {
-    setSelectedReport(report);
+  const handleViewDetails = (mockReport: MockReport) => {
+    // Convert MockReport to Report format for the modal
+    const convertedReport: Report = {
+      id: mockReport.referenceId || mockReport.id,
+      date: mockReport.date,
+      type: mockReport.type,
+      description: mockReport.description,
+      status: mockReport.status,
+      impact: mockReport.impact,
+      title: mockReport.title || `${mockReport.type} Report`,
+      incidentDate: mockReport.date,
+      amountInvolved: mockReport.amount,
+      contactInfo: {
+        phone: mockReport.phoneNumber,
+      },
+      locationInfo: {
+        address: mockReport.location,
+        city: mockReport.location?.split(",")[0]?.trim(),
+        state: mockReport.location?.split(",")[1]?.trim(),
+      },
+      evidenceFiles: mockReport.evidenceCount
+        ? Array.from({ length: mockReport.evidenceCount }, (_, i) => ({
+            name: `Evidence_${i + 1}.jpg`,
+            size: Math.floor(Math.random() * 1000000) + 100000,
+            uploadedAt:
+              mockReport.submittedAt?.toISOString() || mockReport.date,
+          }))
+        : [],
+      statusHistory: [
+        {
+          status: mockReport.status,
+          date:
+            mockReport.updatedAt?.toISOString().split("T")[0] ||
+            mockReport.date,
+          comments: `Report ${mockReport.status.toLowerCase()}`,
+        },
+      ],
+    };
+
+    setSelectedReport(convertedReport);
     setIsModalOpen(true);
   };
 
@@ -300,165 +299,124 @@ const ReportingHistoryTable = ({ filters }: ReportingHistoryTableProps) => {
 
     if (status === "Resolved") {
       variant = "default";
-    } else if (status === "Under Review") {
-      variant = "secondary";
     } else if (status === "Pending") {
+      variant = "secondary";
+    } else if (status === "Under Review") {
       variant = "outline";
     }
 
-    return <Badge variant={variant}>{status}</Badge>;
-  };
-
-  const getImpactBadge = (impact: string) => {
-    const colors = {
-      High: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-      Medium:
-        "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-      Low: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-    };
     return (
-      <Badge className={colors[impact as keyof typeof colors]}>{impact}</Badge>
+      <Badge variant={variant} className="text-xs">
+        {status}
+      </Badge>
     );
   };
 
+  const getImpactBadge = (impact: string) => {
+    let variant: "default" | "destructive" | "outline" | "secondary" =
+      "outline";
+
+    if (impact === "High" || impact === "Critical") {
+      variant = "destructive";
+    } else if (impact === "Medium") {
+      variant = "default";
+    } else {
+      variant = "secondary";
+    }
+
+    return (
+      <Badge variant={variant} className="text-xs">
+        {impact}
+      </Badge>
+    );
+  };
+
+  if (reports.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <div className="text-gray-500 mb-4">
+          <svg
+            className="mx-auto h-12 w-12 text-gray-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+            />
+          </svg>
+        </div>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">
+          No reports found
+        </h3>
+        <p className="text-gray-500">
+          Try adjusting your search filters or create your first fraud report.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
-      {/* Filter Summary and Actions */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="text-sm text-gray-600 dark:text-gray-400">
-          Showing {filteredReports.length} of {allReports.length} reports
-          {filteredReports.length !== allReports.length && (
-            <span className="ml-2 text-india-saffron">• Filtered</span>
-          )}
+      <div className="flex justify-between items-center">
+        <div className="text-sm text-gray-600">
+          Showing {reports.length} of {allReports.length} reports
         </div>
-
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2">
+        <div className="flex gap-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={handleRefresh}
+            onClick={handleRefreshData}
             disabled={isRefreshing}
-            className="flex items-center gap-1"
           >
             <RefreshCw
-              className={`h-3 w-3 ${isRefreshing ? "animate-spin" : ""}`}
+              className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`}
             />
             Refresh
           </Button>
-
-          {sortedReports.length > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportData}
-              className="flex items-center gap-1"
-            >
-              <Download className="h-3 w-3" />
-              Export CSV
-            </Button>
-          )}
+          <Button variant="outline" size="sm" onClick={handleExportData}>
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
         </div>
       </div>
 
-      {/* Active Filter Tags */}
-      {(filters.dateRange.preset !== "all" ||
-        filters.status.length > 0 ||
-        filters.fraudTypes.length > 0 ||
-        filters.location) && (
-        <div className="flex flex-wrap gap-1 mb-4">
-          {filters.dateRange.preset !== "all" && (
-            <Badge variant="outline" className="text-xs">
-              {filters.dateRange.preset === "last7days" && "Last 7 days"}
-              {filters.dateRange.preset === "last30days" && "Last 30 days"}
-              {filters.dateRange.preset === "last90days" && "Last 90 days"}
-              {filters.dateRange.preset === "last12months" && "Last 12 months"}
-            </Badge>
-          )}
-          {filters.status.length > 0 && (
-            <Badge variant="outline" className="text-xs">
-              Status: {filters.status.length} selected
-            </Badge>
-          )}
-          {filters.fraudTypes.length > 0 && (
-            <Badge variant="outline" className="text-xs">
-              Types: {filters.fraudTypes.length} selected
-            </Badge>
-          )}
-          {filters.location && (
-            <Badge variant="outline" className="text-xs">
-              Location: {filters.location}
-            </Badge>
-          )}
-        </div>
-      )}
-
-      {/* No Results Message */}
-      {filteredReports.length === 0 && (
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
-          <div className="text-center">
-            <p className="text-sm text-blue-800 dark:text-blue-200 mb-2">
-              <span className="font-medium">
-                No reports match your current filters
-              </span>
-            </p>
-            <p className="text-xs text-blue-600 dark:text-blue-300 mb-3">
-              Try adjusting your filter criteria or clear filters to see all
-              reports
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                // Reset filters to show all reports
-                window.location.reload();
-              }}
-              className="text-blue-600 border-blue-300 hover:bg-blue-50"
-            >
-              Clear All Filters
-            </Button>
-          </div>
-        </div>
-      )}
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead
-              className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 select-none"
-              onClick={() => handleSort("id")}
-            >
-              Report ID{getSortIcon("id")}
-            </TableHead>
-            <TableHead
-              className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 select-none"
+              className="cursor-pointer"
               onClick={() => handleSort("date")}
             >
-              Date{getSortIcon("date")}
+              Date {getSortIcon("date")}
             </TableHead>
             <TableHead
-              className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 select-none"
+              className="cursor-pointer"
               onClick={() => handleSort("type")}
             >
-              Type{getSortIcon("type")}
+              Type {getSortIcon("type")}
             </TableHead>
             <TableHead>Description</TableHead>
             <TableHead
-              className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 select-none"
+              className="cursor-pointer"
               onClick={() => handleSort("status")}
             >
-              Status{getSortIcon("status")}
+              Status {getSortIcon("status")}
             </TableHead>
             <TableHead
-              className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 select-none"
+              className="cursor-pointer"
               onClick={() => handleSort("impact")}
             >
-              Impact{getSortIcon("impact")}
+              Impact {getSortIcon("impact")}
             </TableHead>
             <TableHead
-              className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 select-none"
+              className="cursor-pointer text-right"
               onClick={() => handleSort("amount")}
             >
-              Amount{getSortIcon("amount")}
+              Amount {getSortIcon("amount")}
             </TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
@@ -466,17 +424,22 @@ const ReportingHistoryTable = ({ filters }: ReportingHistoryTableProps) => {
         <TableBody>
           {reports.map((report) => (
             <TableRow key={report.id}>
-              <TableCell className="font-medium">{report.id}</TableCell>
-              <TableCell>{report.date}</TableCell>
-              <TableCell>{report.type}</TableCell>
-              <TableCell className="max-w-xs truncate">
-                {report.description}
+              <TableCell className="font-medium">
+                {new Date(report.date).toLocaleDateString("en-IN")}
+              </TableCell>
+              <TableCell>
+                <span className="text-sm font-medium">{report.type}</span>
+              </TableCell>
+              <TableCell>
+                <span className="text-sm line-clamp-2">
+                  {report.description}
+                </span>
               </TableCell>
               <TableCell>{getStatusBadge(report.status)}</TableCell>
               <TableCell>{getImpactBadge(report.impact)}</TableCell>
-              <TableCell>
+              <TableCell className="text-right">
                 {report.amount ? (
-                  <span className="text-sm font-medium">
+                  <span className="font-medium">
                     ₹{report.amount.toLocaleString("en-IN")}
                   </span>
                 ) : (
