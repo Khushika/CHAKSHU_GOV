@@ -252,6 +252,9 @@ const baseMockReportsData: MockReport[] = [
   },
 ];
 
+// Export the mock reports data for external use
+export const mockReportsData = baseMockReportsData;
+
 // Helper function to get reports for specific date ranges
 export const getReportsByDateRange = (days: number): MockReport[] => {
   const cutoffDate = new Date();
