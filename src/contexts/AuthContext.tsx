@@ -94,13 +94,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       // Handle demo mode
       if (isDemoMode) {
-        toast({
-          title: "Demo Mode Active",
-          description:
-            "Authentication service is not configured. Registration simulated successfully.",
-          variant: "default",
-        });
-
         // Simulate successful registration in demo mode
         setTimeout(() => {
           setUser({
