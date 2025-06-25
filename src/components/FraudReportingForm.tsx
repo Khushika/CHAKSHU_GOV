@@ -354,6 +354,49 @@ const FraudReportingForm = () => {
       // Generate reference ID
       const referenceId = `FR-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
 
+      // Save report to localStorage for dashboard and reports management
+      const newReport = {
+        id: `USER-${Date.now()}`,
+        date: new Date().toISOString().split("T")[0],
+        type: formData.fraudType,
+        title: `${formData.fraudType} - ${formData.category}`,
+        description: formData.messageContent,
+        status: "Pending",
+        impact:
+          formData.amount && formData.amount > 50000
+            ? "Critical"
+            : formData.amount && formData.amount > 10000
+              ? "High"
+              : "Medium",
+        location: formData.location || "Location not specified",
+        amount: formData.amount,
+        phoneNumber: formData.phoneNumber,
+        referenceId,
+        evidenceCount: formData.files.length,
+        submittedAt: new Date(),
+        updatedAt: new Date(),
+        severity:
+          formData.amount && formData.amount > 50000
+            ? "critical"
+            : formData.amount && formData.amount > 10000
+              ? "high"
+              : "medium",
+      };
+
+      // Save to localStorage
+      try {
+        const existingReports = JSON.parse(
+          localStorage.getItem("user-fraud-reports") || "[]",
+        );
+        localStorage.setItem(
+          "user-fraud-reports",
+          JSON.stringify([newReport, ...existingReports]),
+        );
+        window.dispatchEvent(new CustomEvent("user-reports-updated"));
+      } catch (error) {
+        console.error("Failed to save user report:", error);
+      }
+
       setSubmitSuccess(true);
 
       toast({
