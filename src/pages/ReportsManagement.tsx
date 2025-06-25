@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -95,6 +95,67 @@ const ReportsManagement = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  // Function to load all reports (user + mock)
+  const loadAllReports = () => {
+    try {
+      // Get user reports from localStorage
+      const userReportsData = JSON.parse(
+        localStorage.getItem("user-fraud-reports") || "[]",
+      );
+
+      // Convert user reports to Report format
+      const userReports: Report[] = userReportsData.map((report: any) => ({
+        id: report.id,
+        type: report.type,
+        title: report.title,
+        description: report.description,
+        phoneNumber: report.phoneNumber || "+91-9876543210",
+        location: report.location,
+        amount: report.amount,
+        status: report.status
+          .toLowerCase()
+          .replace(" ", "_") as Report["status"],
+        severity:
+          report.severity ||
+          (report.impact?.toLowerCase() as Report["severity"]) ||
+          "medium",
+        submittedAt: report.submittedAt
+          ? new Date(report.submittedAt)
+          : new Date(report.date),
+        updatedAt: report.updatedAt
+          ? new Date(report.updatedAt)
+          : new Date(report.date),
+        referenceId: report.referenceId,
+        evidenceCount: report.evidenceCount || 0,
+      }));
+
+      // Combine user reports with mock reports
+      const allReports = [...userReports, ...mockReports];
+      setReports(allReports);
+    } catch (error) {
+      console.error("Failed to load user reports:", error);
+      setReports(mockReports);
+    }
+  };
+
+  // Load reports on component mount and listen for updates
+  useEffect(() => {
+    loadAllReports();
+
+    const handleUserReportsUpdate = () => {
+      loadAllReports();
+    };
+
+    window.addEventListener("user-reports-updated", handleUserReportsUpdate);
+
+    return () => {
+      window.removeEventListener(
+        "user-reports-updated",
+        handleUserReportsUpdate,
+      );
+    };
+  }, []);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
