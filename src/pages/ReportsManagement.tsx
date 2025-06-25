@@ -85,7 +85,7 @@ const convertToReportsFormat = (): Report[] => {
 const mockReports: Report[] = convertToReportsFormat();
 
 const ReportsManagement = () => {
-  const [reports, setReports] = useState<Report[]>(mockReports);
+  const [reports, setReports] = useState<Report[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
