@@ -122,13 +122,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       // Check if it's a mock error (demo mode fallback)
       if (error && error.message === "Demo mode active") {
-        toast({
-          title: "Demo Mode Active",
-          description:
-            "Authentication service is unavailable. Registration simulated successfully.",
-          variant: "default",
-        });
-
         // Simulate successful registration in demo mode
         setTimeout(() => {
           setUser({
@@ -166,13 +159,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Handle network/fetch errors specifically
       if (error instanceof TypeError && error.message.includes("fetch")) {
         // Fallback to demo mode for network errors
-        toast({
-          title: "Demo Mode Active",
-          description:
-            "Network connection failed. Using demo mode - registration simulated successfully.",
-          variant: "default",
-        });
-
         // Simulate successful registration in demo mode
         setTimeout(() => {
           setUser({
@@ -201,19 +187,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       // Handle demo mode
       if (isDemoMode) {
-        toast({
-          title: "Demo Mode Active",
-          description:
-            "Authentication service is not configured. Login simulated successfully.",
-          variant: "default",
-        });
-
-        // Simulate successful login in demo mode
+        // Simulate successful login in demo mode - use email as name fallback
+        const userName = email.split("@")[0] || "User";
         setTimeout(() => {
           setUser({
             id: "demo-user-" + Date.now(),
             email: email,
-            user_metadata: { full_name: "Demo User" },
+            user_metadata: { full_name: userName },
             app_metadata: {},
             aud: "authenticated",
             created_at: new Date().toISOString(),
@@ -231,19 +211,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       // Check if it's a mock error (demo mode fallback)
       if (error && error.message === "Demo mode active") {
-        toast({
-          title: "Demo Mode Active",
-          description:
-            "Authentication service is unavailable. Login simulated successfully.",
-          variant: "default",
-        });
-
-        // Simulate successful login in demo mode
+        // Simulate successful login in demo mode - use email as name fallback
+        const userName = email.split("@")[0] || "User";
         setTimeout(() => {
           setUser({
             id: "demo-user-" + Date.now(),
             email: email,
-            user_metadata: { full_name: "Demo User" },
+            user_metadata: { full_name: userName },
             app_metadata: {},
             aud: "authenticated",
             created_at: new Date().toISOString(),
@@ -270,19 +244,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Handle network/fetch errors specifically
       if (error instanceof TypeError && error.message.includes("fetch")) {
         // Fallback to demo mode for network errors
-        toast({
-          title: "Demo Mode Active",
-          description:
-            "Network connection failed. Using demo mode - login simulated successfully.",
-          variant: "default",
-        });
-
-        // Simulate successful login in demo mode
+        // Simulate successful login in demo mode - use email as name fallback
+        const userName = email.split("@")[0] || "User";
         setTimeout(() => {
           setUser({
             id: "demo-user-" + Date.now(),
             email: email,
-            user_metadata: { full_name: "Demo User" },
+            user_metadata: { full_name: userName },
             app_metadata: {},
             aud: "authenticated",
             created_at: new Date().toISOString(),
@@ -321,12 +289,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       // Handle demo mode
       if (isDemoMode) {
-        toast({
-          title: "Demo Mode Active",
-          description: "Password reset simulated successfully in demo mode.",
-          variant: "default",
-        });
-
         return { error: null };
       }
 
@@ -336,12 +298,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       // Check if it's a mock error (demo mode fallback)
       if (error && error.message === "Demo mode active") {
-        toast({
-          title: "Demo Mode Active",
-          description: "Password reset simulated successfully.",
-          variant: "default",
-        });
-
         return { error: null };
       }
 
@@ -366,13 +322,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Handle network/fetch errors specifically
       if (error instanceof TypeError && error.message.includes("fetch")) {
         // Fallback to demo mode for network errors
-        toast({
-          title: "Demo Mode Active",
-          description:
-            "Network connection failed. Password reset simulated successfully.",
-          variant: "default",
-        });
-
         return { error: null };
       }
 
