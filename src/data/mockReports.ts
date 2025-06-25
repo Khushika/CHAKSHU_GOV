@@ -32,7 +32,8 @@ const getRecentDate = (daysAgo: number): string => {
   return date.toISOString().split("T")[0];
 };
 
-export const mockReportsData: MockReport[] = [
+// Base mock reports data
+const baseMockReportsData: MockReport[] = [
   {
     id: "RPT-001",
     date: getRecentDate(2),
