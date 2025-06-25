@@ -270,14 +270,17 @@ const ReportingHistoryTable = ({ filters }: ReportingHistoryTableProps) => {
             name: `Evidence_${i + 1}.jpg`,
             size: Math.floor(Math.random() * 1000000) + 100000,
             uploadedAt:
-              mockReport.submittedAt?.toISOString() || mockReport.date,
+        uploadedAt: mockReport.submittedAt ? (typeof mockReport.submittedAt === 'string' ? mockReport.submittedAt : mockReport.submittedAt.toISOString()) : mockReport.date,
           }))
         : [],
       statusHistory: [
         {
           status: mockReport.status,
           date:
-            mockReport.updatedAt?.toISOString().split("T")[0] ||
+          date: mockReport.updatedAt ?
+            (typeof mockReport.updatedAt === 'string' ?
+              mockReport.updatedAt.split('T')[0] :
+              mockReport.updatedAt.toISOString().split("T")[0]) ||
             mockReport.date,
           comments: `Report ${mockReport.status.toLowerCase()}`,
         },
