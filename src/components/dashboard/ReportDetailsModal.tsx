@@ -115,16 +115,7 @@ const ReportDetailsModal = ({
       ...baseReport,
       title: `${baseReport.type} Report - ${baseReport.id}`,
       incidentDate: baseReport.date,
-      amountInvolved:
-        baseReport.type === "Email Spam"
-          ? 0
-          : baseReport.type === "SMS Fraud"
-            ? 50000
-            : baseReport.type === "Call Fraud"
-              ? 25000
-              : baseReport.type === "Phishing"
-                ? 75000
-                : 15000,
+      amountInvolved: baseReport.amountInvolved,
       contactInfo: {
         phone: "+91 98765 43210",
         email: "user@example.com",
