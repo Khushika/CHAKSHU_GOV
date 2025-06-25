@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,7 +38,39 @@ const ReportingHistoryTable = ({ filters }: ReportingHistoryTableProps) => {
   });
   const { toast } = useToast();
 
-  const allReports = mockReportsData;
+  // State for all reports including user reports
+  const [allReports, setAllReports] = useState<MockReport[]>(mockReportsData);
+
+  // Function to load user reports from localStorage
+  const loadUserReports = () => {
+    try {
+      const userReports = JSON.parse(
+        localStorage.getItem("user-fraud-reports") || "[]",
+      );
+      setAllReports([...userReports, ...mockReportsData]);
+    } catch (error) {
+      console.error("Failed to load user reports:", error);
+      setAllReports(mockReportsData);
+    }
+  };
+
+  // Load user reports on component mount and listen for updates
+  useEffect(() => {
+    loadUserReports();
+
+    const handleUserReportsUpdate = () => {
+      loadUserReports();
+    };
+
+    window.addEventListener("user-reports-updated", handleUserReportsUpdate);
+
+    return () => {
+      window.removeEventListener(
+        "user-reports-updated",
+        handleUserReportsUpdate,
+      );
+    };
+  }, []);
 
   // Apply filters to the reports
   const filteredReports = allReports.filter((report) => {
