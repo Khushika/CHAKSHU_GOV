@@ -269,18 +269,15 @@ const ReportingHistoryTable = ({ filters }: ReportingHistoryTableProps) => {
         ? Array.from({ length: mockReport.evidenceCount }, (_, i) => ({
             name: `Evidence_${i + 1}.jpg`,
             size: Math.floor(Math.random() * 1000000) + 100000,
-            uploadedAt:
-        uploadedAt: mockReport.submittedAt ? (typeof mockReport.submittedAt === 'string' ? mockReport.submittedAt : mockReport.submittedAt.toISOString()) : mockReport.date,
+        uploadedAt: mockReport.submittedAt ? (mockReport.submittedAt instanceof Date ? mockReport.submittedAt.toISOString() : String(mockReport.submittedAt)) : mockReport.date,
+        uploadedAt: mockReport.submittedAt ? (mockReport.submittedAt instanceof Date ? mockReport.submittedAt.toISOString() : String(mockReport.submittedAt)) : mockReport.date,
           }))
         : [],
       statusHistory: [
         {
           status: mockReport.status,
           date:
-          date: mockReport.updatedAt ?
-            (typeof mockReport.updatedAt === 'string' ?
-              mockReport.updatedAt.split('T')[0] :
-              mockReport.updatedAt.toISOString().split("T")[0]) ||
+          date: mockReport.updatedAt ? (mockReport.updatedAt instanceof Date ? mockReport.updatedAt.toISOString().split("T")[0] : String(mockReport.updatedAt).split("T")[0]) : mockReport.date,
             mockReport.date,
           comments: `Report ${mockReport.status.toLowerCase()}`,
         },
