@@ -1,29 +1,41 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import React, { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  Calendar, 
-  CreditCard, 
-  MapPin, 
-  Phone, 
-  Mail, 
+import {
+  Calendar,
+  CreditCard,
+  MapPin,
+  Phone,
+  Mail,
   FileText,
   Clock,
   AlertCircle,
   CheckCircle,
-  Save
+  Save,
 } from "lucide-react";
 import SimilarCases from "./SimilarCases";
 import FollowUpReminders from "./FollowUpReminders";
 import { Database } from "@/integrations/supabase/types";
 
-type FraudType = Database['public']['Enums']['fraud_type'];
+type FraudType = Database["public"]["Enums"]["fraud_type"];
 
 interface Report {
   id: string;
@@ -51,8 +63,12 @@ const ReportDetails = ({ report, onReportUpdate }: ReportDetailsProps) => {
   const [evidence, setEvidence] = useState<any[]>([]);
   const [isUpdating, setIsUpdating] = useState(false);
   const [newStatus, setNewStatus] = useState(report.status);
-  const [newAuthorityAction, setNewAuthorityAction] = useState(report.authority_action || '');
-  const [newComments, setNewComments] = useState(report.authority_comments || '');
+  const [newAuthorityAction, setNewAuthorityAction] = useState(
+    report.authority_action || "",
+  );
+  const [newComments, setNewComments] = useState(
+    report.authority_comments || "",
+  );
   const { toast } = useToast();
 
   useEffect(() => {
@@ -63,47 +79,47 @@ const ReportDetails = ({ report, onReportUpdate }: ReportDetailsProps) => {
   const fetchStatusHistory = async () => {
     try {
       const { data, error } = await supabase
-        .from('report_status_history')
-        .select('*')
-        .eq('report_id', report.id)
-        .order('created_at', { ascending: false });
+        .from("report_status_history")
+        .select("*")
+        .eq("report_id", report.id)
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
       setStatusHistory(data || []);
     } catch (error: any) {
-      console.error('Error fetching status history:', error);
+      console.error("Error fetching status history:", error);
     }
   };
 
   const fetchEvidence = async () => {
     try {
       const { data, error } = await supabase
-        .from('report_evidence')
-        .select('*')
-        .eq('report_id', report.id)
-        .order('uploaded_at', { ascending: false });
+        .from("report_evidence")
+        .select("*")
+        .eq("report_id", report.id)
+        .order("uploaded_at", { ascending: false });
 
       if (error) throw error;
       setEvidence(data || []);
     } catch (error: any) {
-      console.error('Error fetching evidence:', error);
+      console.error("Error fetching evidence:", error);
     }
   };
 
   const handleUpdateReport = async () => {
     try {
       setIsUpdating(true);
-      
+
       const updateData: any = {
         status: newStatus,
         authority_action: newAuthorityAction || null,
-        authority_comments: newComments || null
+        authority_comments: newComments || null,
       };
 
       const { error } = await supabase
-        .from('reports')
+        .from("reports")
         .update(updateData)
-        .eq('id', report.id);
+        .eq("id", report.id);
 
       if (error) throw error;
 
@@ -127,29 +143,34 @@ const ReportDetails = ({ report, onReportUpdate }: ReportDetailsProps) => {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'pending': return <Clock className="h-4 w-4 text-yellow-500" />;
-      case 'under_review': return <AlertCircle className="h-4 w-4 text-blue-500" />;
-      case 'resolved': return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case 'rejected': return <AlertCircle className="h-4 w-4 text-red-500" />;
-      default: return <Clock className="h-4 w-4 text-gray-500" />;
+      case "pending":
+        return <Clock className="h-4 w-4 text-yellow-500" />;
+      case "under_review":
+        return <AlertCircle className="h-4 w-4 text-blue-500" />;
+      case "resolved":
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case "rejected":
+        return <AlertCircle className="h-4 w-4 text-red-500" />;
+      default:
+        return <Clock className="h-4 w-4 text-gray-500" />;
     }
   };
 
   const formatAmount = (amount: number | null) => {
-    if (!amount) return 'Not specified';
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR'
+    if (!amount) return "Not specified";
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
     }).format(amount);
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-IN', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+    return new Date(dateString).toLocaleDateString("en-IN", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
@@ -167,13 +188,18 @@ const ReportDetails = ({ report, onReportUpdate }: ReportDetailsProps) => {
             </div>
             <div className="flex items-center gap-2">
               {getStatusIcon(report.status)}
-              <Badge className={
-                report.status === 'resolved' ? 'bg-green-100 text-green-800' :
-                report.status === 'under_review' ? 'bg-blue-100 text-blue-800' :
-                report.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                'bg-yellow-100 text-yellow-800'
-              }>
-                {report.status.replace('_', ' ').toUpperCase()}
+              <Badge
+                className={
+                  report.status === "resolved"
+                    ? "bg-green-100 text-green-800"
+                    : report.status === "under_review"
+                      ? "bg-blue-100 text-blue-800"
+                      : report.status === "rejected"
+                        ? "bg-red-100 text-red-800"
+                        : "bg-yellow-100 text-yellow-800"
+                }
+              >
+                {report.status.replace("_", " ").toUpperCase()}
               </Badge>
             </div>
           </div>
@@ -184,7 +210,9 @@ const ReportDetails = ({ report, onReportUpdate }: ReportDetailsProps) => {
               <FileText className="h-4 w-4 text-gray-500" />
               <div>
                 <p className="text-sm text-gray-500">Fraud Type</p>
-                <p className="font-medium">{report.fraud_type.replace('_', ' ')}</p>
+                <p className="font-medium">
+                  {report.fraud_type.replace("_", " ")}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -192,10 +220,9 @@ const ReportDetails = ({ report, onReportUpdate }: ReportDetailsProps) => {
               <div>
                 <p className="text-sm text-gray-500">Incident Date</p>
                 <p className="font-medium">
-                  {report.incident_date 
-                    ? new Date(report.incident_date).toLocaleDateString('en-IN')
-                    : 'Not specified'
-                  }
+                  {report.incident_date
+                    ? new Date(report.incident_date).toLocaleDateString("en-IN")
+                    : "Not specified"}
                 </p>
               </div>
             </div>
@@ -203,7 +230,9 @@ const ReportDetails = ({ report, onReportUpdate }: ReportDetailsProps) => {
               <CreditCard className="h-4 w-4 text-gray-500" />
               <div>
                 <p className="text-sm text-gray-500">Amount Involved</p>
-                <p className="font-medium">{formatAmount(report.amount_involved)}</p>
+                <p className="font-medium">
+                  {formatAmount(report.amount_involved)}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -226,7 +255,9 @@ const ReportDetails = ({ report, onReportUpdate }: ReportDetailsProps) => {
               <CardTitle>Description</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-700 whitespace-pre-wrap">{report.description}</p>
+              <p className="text-gray-700 whitespace-pre-wrap">
+                {report.description}
+              </p>
             </CardContent>
           </Card>
 
@@ -264,7 +295,10 @@ const ReportDetails = ({ report, onReportUpdate }: ReportDetailsProps) => {
               <CardContent>
                 <div className="flex items-center gap-2">
                   <MapPin className="h-4 w-4 text-gray-500" />
-                  <span>{report.location_info.address || 'Location details available'}</span>
+                  <span>
+                    {report.location_info.address ||
+                      "Location details available"}
+                  </span>
                 </div>
               </CardContent>
             </Card>
@@ -279,12 +313,16 @@ const ReportDetails = ({ report, onReportUpdate }: ReportDetailsProps) => {
               <CardContent>
                 <div className="space-y-2">
                   {evidence.map((file) => (
-                    <div key={file.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                    <div
+                      key={file.id}
+                      className="flex items-center justify-between p-2 bg-gray-50 rounded"
+                    >
                       <div>
                         <p className="font-medium">{file.file_name}</p>
                         <p className="text-sm text-gray-500">
-                          {file.file_size && `${(file.file_size / 1024 / 1024).toFixed(2)} MB`} • 
-                          {formatDate(file.uploaded_at)}
+                          {file.file_size &&
+                            `${(file.file_size / 1024 / 1024).toFixed(2)} MB`}{" "}
+                          •{formatDate(file.uploaded_at)}
                         </p>
                       </div>
                       <Button variant="outline" size="sm">
@@ -324,19 +362,36 @@ const ReportDetails = ({ report, onReportUpdate }: ReportDetailsProps) => {
 
               <div>
                 <Label>Authority Action</Label>
-                <Select value={newAuthorityAction} onValueChange={setNewAuthorityAction}>
+                <Select
+                  value={newAuthorityAction || "none"}
+                  onValueChange={(value) =>
+                    setNewAuthorityAction(value === "none" ? "" : value)
+                  }
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select action" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No action</SelectItem>
-                    <SelectItem value="investigation_started">Investigation Started</SelectItem>
-                    <SelectItem value="evidence_collected">Evidence Collected</SelectItem>
-                    <SelectItem value="case_forwarded">Case Forwarded</SelectItem>
-                    <SelectItem value="suspect_identified">Suspect Identified</SelectItem>
-                    <SelectItem value="legal_action_taken">Legal Action Taken</SelectItem>
+                    <SelectItem value="none">No action</SelectItem>
+                    <SelectItem value="investigation_started">
+                      Investigation Started
+                    </SelectItem>
+                    <SelectItem value="evidence_collected">
+                      Evidence Collected
+                    </SelectItem>
+                    <SelectItem value="case_forwarded">
+                      Case Forwarded
+                    </SelectItem>
+                    <SelectItem value="suspect_identified">
+                      Suspect Identified
+                    </SelectItem>
+                    <SelectItem value="legal_action_taken">
+                      Legal Action Taken
+                    </SelectItem>
                     <SelectItem value="case_closed">Case Closed</SelectItem>
-                    <SelectItem value="no_action_required">No Action Required</SelectItem>
+                    <SelectItem value="no_action_required">
+                      No Action Required
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -377,15 +432,18 @@ const ReportDetails = ({ report, onReportUpdate }: ReportDetailsProps) => {
                   <p className="text-gray-500">No status changes recorded</p>
                 ) : (
                   statusHistory.map((history) => (
-                    <div key={history.id} className="border-l-2 border-gray-200 pl-4 pb-3">
+                    <div
+                      key={history.id}
+                      className="border-l-2 border-gray-200 pl-4 pb-3"
+                    >
                       <div className="flex items-center gap-2 mb-1">
                         {getStatusIcon(history.status)}
                         <Badge variant="outline">
-                          {history.status.replace('_', ' ').toUpperCase()}
+                          {history.status.replace("_", " ").toUpperCase()}
                         </Badge>
                         {history.authority_action && (
                           <Badge variant="secondary" className="text-xs">
-                            {history.authority_action.replace('_', ' ')}
+                            {history.authority_action.replace("_", " ")}
                           </Badge>
                         )}
                       </div>

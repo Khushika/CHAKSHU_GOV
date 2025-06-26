@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,10 +9,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Download, RefreshCw } from "lucide-react";
+import { Download, RefreshCw, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ReportDetailsModal, { Report } from "./ReportDetailsModal";
-import { mockReportsData, type MockReport } from "@/data/mockReports";
+import {
+  reportsService,
+  type Report as DatabaseReport,
+} from "@/services/database";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface ReportingHistoryTableProps {
   filters: {
@@ -25,10 +29,64 @@ interface ReportingHistoryTableProps {
   };
 }
 
+interface MockReport {
+  id: string;
+  date: string;
+  type: string;
+  description: string;
+  status: string;
+  impact: string;
+  amount?: number;
+  location: string;
+}
+
+// Convert database report to mock report format for compatibility
+const convertToMockFormat = (report: DatabaseReport): MockReport => {
+  // Helper function to safely format strings
+  const formatString = (
+    str: string | null | undefined,
+    fallback: string = "Unknown",
+  ) => {
+    if (!str || typeof str !== "string" || str.trim() === "") return fallback;
+    try {
+      return str.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+    } catch (error) {
+      console.warn("Error formatting string:", str, error);
+      return fallback;
+    }
+  };
+
+  return {
+    id: report.id || "unknown",
+    date: report.created_at
+      ? new Date(report.created_at).toLocaleDateString()
+      : "Unknown",
+    type: formatString(
+      report.fraud_type || (report as any).report_type,
+      "Unknown",
+    ),
+    description: report.description || "No description provided",
+    status: formatString(report.status, "Pending"),
+    impact: formatString(
+      (report as any).priority || (report as any).severity,
+      "Medium",
+    ),
+    amount: report.amount_involved || undefined,
+    location:
+      report.state ||
+      report.city ||
+      (report as any).location ||
+      "Not specified",
+  };
+};
+
 const ReportingHistoryTable = ({ filters }: ReportingHistoryTableProps) => {
+  const { user } = useAuth();
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [allReports, setAllReports] = useState<MockReport[]>([]);
   const [sortConfig, setSortConfig] = useState<{
     key: keyof MockReport;
     direction: "asc" | "desc";
@@ -38,7 +96,34 @@ const ReportingHistoryTable = ({ filters }: ReportingHistoryTableProps) => {
   });
   const { toast } = useToast();
 
-  const allReports = mockReportsData;
+  // Load reports from database
+  useEffect(() => {
+    const loadReports = async () => {
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const result = await reportsService.getUserReports(user.id);
+        if (result.success && result.data && result.data.reports) {
+          const mockReports = result.data.reports.map(convertToMockFormat);
+          setAllReports(mockReports);
+        } else {
+          console.error("Failed to load reports:", result.error);
+          setAllReports([]);
+        }
+      } catch (error) {
+        console.error("Error loading reports:", error);
+        setAllReports([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadReports();
+  }, [user]);
 
   // Apply filters to the reports
   const filteredReports = allReports.filter((report) => {
@@ -241,15 +326,31 @@ const ReportingHistoryTable = ({ filters }: ReportingHistoryTableProps) => {
   };
 
   const handleRefresh = async () => {
-    setIsRefreshing(true);
-    // Simulate refresh delay
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsRefreshing(false);
+    if (!user) return;
 
-    toast({
-      title: "Data Refreshed",
-      description: "Your personal reporting history has been updated.",
-    });
+    setIsRefreshing(true);
+    try {
+      const result = await reportsService.getUserReports(user.id);
+      if (result.success && result.data && result.data.reports) {
+        const mockReports = result.data.reports.map(convertToMockFormat);
+        setAllReports(mockReports);
+        toast({
+          title: "Data Refreshed",
+          description: "Your personal reporting history has been updated.",
+        });
+      } else {
+        throw new Error(result.error || "Failed to refresh reports");
+      }
+    } catch (error) {
+      console.error("Error refreshing reports:", error);
+      toast({
+        title: "Refresh Failed",
+        description: "Failed to refresh your reports. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   const handleViewDetails = (report: Report) => {

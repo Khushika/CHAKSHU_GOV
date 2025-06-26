@@ -34,6 +34,11 @@ import WirelineISPCheck from "./pages/WirelineISPCheck";
 import VoiceReporting from "./pages/VoiceReporting";
 import Guidelines from "./pages/Guidelines";
 import NotFound from "./pages/NotFound";
+// Authentication pages
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import ErrorBoundary from "@/components/ui/error-boundary";
 
 const queryClient = new QueryClient({
@@ -83,6 +88,12 @@ const AppContent = () => {
         <main id="main-content" tabIndex={-1}>
           <Routes>
             <Route path="/" element={<Index />} />
+            {/* Authentication Routes */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            {/* Protected Routes */}
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/community" element={<Community />} />

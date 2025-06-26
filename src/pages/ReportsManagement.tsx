@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,14 +38,16 @@ import {
   Clock,
   FileText,
   Shield,
+  Loader2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { formatCurrency } from "@/lib/currency";
 import ReportDetailsModal from "@/components/dashboard/ReportDetailsModal";
 import EditReportModal from "@/components/reports/EditReportModal";
-import { mockReportsData, getReportStats } from "@/data/mockReports";
+import { reportsService, type Report } from "@/services/database";
+import { useAuth } from "@/contexts/AuthContext";
 
-interface Report {
+interface DisplayReport {
   id: string;
   type: string;
   title: string;
@@ -61,40 +63,131 @@ interface Report {
   evidenceCount: number;
 }
 
-// Convert shared mock data to ReportsManagement format
-const convertToReportsFormat = (): Report[] => {
-  return mockReportsData.map((report, index) => ({
-    id: (index + 1).toString(),
-    type: report.type,
-    title: report.title || report.description,
-    description: report.description,
-    phoneNumber: report.phoneNumber || "+91-9876543210",
-    location: report.location,
-    amount: report.amount,
-    status: report.status.toLowerCase().replace(" ", "_") as Report["status"],
-    severity:
-      report.severity || (report.impact.toLowerCase() as Report["severity"]),
-    submittedAt: report.submittedAt || new Date(report.date),
-    updatedAt: report.updatedAt || new Date(report.date),
-    referenceId:
-      report.referenceId || `FR-2024-${String(index + 1).padStart(6, "0")}`,
-    evidenceCount: report.evidenceCount || Math.floor(Math.random() * 5) + 1,
-  }));
+// Helper function to safely format strings
+const formatString = (
+  str: string | null | undefined,
+  fallback: string = "Unknown",
+): string => {
+  if (!str || typeof str !== "string" || str.trim() === "") return fallback;
+  try {
+    return str.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+  } catch (error) {
+    console.warn("Error formatting string:", str, error);
+    return fallback;
+  }
 };
 
-const mockReports: Report[] = convertToReportsFormat();
+// Convert database report to display format
+const convertToDisplayFormat = (report: Report): DisplayReport => {
+  // Safely extract and format report type
+  const reportType = formatString(
+    report.report_type || report.fraud_type,
+    "General",
+  );
+
+  // Safely extract and format fraud category
+  const fraudCategory = formatString(
+    report.fraud_category || report.fraud_type || report.title,
+    "Fraud",
+  );
+
+  return {
+    id: report.id,
+    type: reportType,
+    title: report.title || `${fraudCategory} Report`,
+    description: report.description || "No description provided",
+    phoneNumber: report.fraudulent_number || null,
+    location:
+      report.city && report.state
+        ? `${report.city}, ${report.state}`
+        : "Not specified",
+    amount: report.amount_involved || undefined,
+    status: (report.status as DisplayReport["status"]) || "pending",
+    severity: (report.priority as DisplayReport["severity"]) || "medium",
+    submittedAt: new Date(report.created_at || Date.now()),
+    updatedAt: new Date(report.updated_at || report.created_at || Date.now()),
+    referenceId: report.id,
+    evidenceCount: (report.evidence_urls || []).length,
+  };
+};
 
 const ReportsManagement = () => {
-  const [reports, setReports] = useState<Report[]>(mockReports);
+  const { user } = useAuth();
+  const [reports, setReports] = useState<DisplayReport[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [showNewReportModal, setShowNewReportModal] = useState(false);
-  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const [selectedReport, setSelectedReport] = useState<DisplayReport | null>(
+    null,
+  );
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  // Load user reports from database
+  useEffect(() => {
+    const loadReports = async () => {
+      if (!user) return;
+
+      setLoading(true);
+      try {
+        const result = await reportsService.getUserReports(user.id);
+        if (result.success && result.data && result.data.reports) {
+          const displayReports = result.data.reports
+            .filter((report) => report && typeof report === "object")
+            .map((report) => {
+              try {
+                return convertToDisplayFormat(report);
+              } catch (conversionError) {
+                console.error(
+                  "Error converting report:",
+                  report,
+                  conversionError,
+                );
+                // Return a safe fallback report
+                return {
+                  id: report.id || "unknown",
+                  type: "Unknown",
+                  title: report.title || "Untitled Report",
+                  description: report.description || "No description available",
+                  phoneNumber: null,
+                  location: "Not specified",
+                  amount: undefined,
+                  status: "pending" as const,
+                  severity: "medium" as const,
+                  submittedAt: new Date(),
+                  updatedAt: new Date(),
+                  referenceId: report.id || "unknown",
+                  evidenceCount: 0,
+                } as DisplayReport;
+              }
+            });
+          setReports(displayReports);
+        } else {
+          console.error("Failed to load reports:", result.error);
+          toast({
+            title: "Error Loading Reports",
+            description: "Failed to load your reports. Please try again.",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        console.error("Error loading reports:", error);
+        toast({
+          title: "Error Loading Reports",
+          description: "An unexpected error occurred.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadReports();
+  }, [user, toast]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -217,18 +310,38 @@ const ReportsManagement = () => {
     setSelectedReport(null);
   };
 
-  const handleSaveReport = (updatedReport: Report) => {
-    setReports((prevReports) =>
-      prevReports.map((report) =>
-        report.id === updatedReport.id ? updatedReport : report,
-      ),
-    );
-    setIsEditModalOpen(false);
-    setSelectedReport(null);
-    toast({
-      title: "Report Updated",
-      description: "Your fraud report has been updated successfully.",
-    });
+  const handleSaveReport = async (updatedReport: DisplayReport) => {
+    try {
+      // Update in database
+      const result = await reportsService.update(updatedReport.id, {
+        description: updatedReport.description,
+        // Add other updatable fields as needed
+      });
+
+      if (result.success) {
+        // Update local state
+        setReports((prevReports) =>
+          prevReports.map((report) =>
+            report.id === updatedReport.id ? updatedReport : report,
+          ),
+        );
+        setIsEditModalOpen(false);
+        setSelectedReport(null);
+        toast({
+          title: "Report Updated",
+          description: "Your fraud report has been updated successfully.",
+        });
+      } else {
+        throw new Error(result.error || "Failed to update report");
+      }
+    } catch (error) {
+      console.error("Error updating report:", error);
+      toast({
+        title: "Update Failed",
+        description: "Failed to update your report. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const statusCounts = {
@@ -417,7 +530,19 @@ const ReportsManagement = () => {
 
           {/* Reports List */}
           <div className="space-y-4">
-            {filteredReports.length === 0 ? (
+            {loading ? (
+              <Card>
+                <CardContent className="p-12 text-center">
+                  <Loader2 className="h-12 w-12 text-gray-300 mx-auto mb-4 animate-spin" />
+                  <h3 className="font-medium text-gray-900 mb-2">
+                    Loading your reports...
+                  </h3>
+                  <p className="text-gray-500">
+                    Please wait while we fetch your fraud reports
+                  </p>
+                </CardContent>
+              </Card>
+            ) : filteredReports.length === 0 ? (
               <Card>
                 <CardContent className="p-12 text-center">
                   <FileText className="h-12 w-12 text-gray-300 mx-auto mb-4" />
