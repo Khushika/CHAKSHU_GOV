@@ -11,6 +11,9 @@
 @import url("https://fonts.googleapis.com/css2?family=Noto+Sans+Gurmukhi:wght@400;500;600;700&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Noto+Sans+Urdu:wght@400;500;600;700&display=swap");
 
+/* Import responsive styles */
+@import "./styles/responsive.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -163,6 +166,12 @@
     @apply border-border;
   }
 
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+  }
+
   body {
     @apply bg-background text-foreground;
     font-family:
@@ -179,6 +188,17 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    /* Enhanced scrolling for mobile */
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: none;
+  }
+
+  /* Improve touch targets for mobile */
+  button,
+  a,
+  [role="button"],
+  [tabindex] {
+    touch-action: manipulation;
   }
 
   /* Responsive font sizes */
@@ -322,6 +342,21 @@
 }
 
 @layer utilities {
+  /* Line clamping utilities */
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
   /* India theme utilities */
   .text-india-saffron {
     color: hsl(var(--india-saffron));

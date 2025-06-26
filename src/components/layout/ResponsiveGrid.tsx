@@ -4,58 +4,60 @@ import { cn } from "@/lib/utils";
 interface ResponsiveGridProps {
   children: React.ReactNode;
   className?: string;
-  columns?: {
-    sm?: number;
-    md?: number;
-    lg?: number;
-    xl?: number;
-  };
+  cols?: 1 | 2 | 3 | 4 | 5 | 6;
   gap?: "sm" | "md" | "lg" | "xl";
-  autoFit?: boolean;
-  minItemWidth?: string;
+  breakpoints?: {
+    sm?: 1 | 2 | 3 | 4;
+    md?: 1 | 2 | 3 | 4 | 5;
+    lg?: 1 | 2 | 3 | 4 | 5 | 6;
+    xl?: 1 | 2 | 3 | 4 | 5 | 6;
+  };
 }
 
 const ResponsiveGrid: React.FC<ResponsiveGridProps> = ({
   children,
   className,
-  columns = { sm: 1, md: 2, lg: 3, xl: 4 },
+  cols = 3,
   gap = "md",
-  autoFit = false,
-  minItemWidth = "280px",
+  breakpoints,
 }) => {
+  const baseColClasses = {
+    1: "grid-cols-1",
+    2: "grid-cols-1 lg:grid-cols-2",
+    3: "grid-cols-1 md:grid-cols-2 xl:grid-cols-3",
+    4: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
+    5: "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5",
+    6: "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6",
+  };
+
   const gapClasses = {
-    sm: "gap-3",
-    md: "gap-4 sm:gap-6",
-    lg: "gap-6 sm:gap-8",
-    xl: "gap-8 sm:gap-10",
+    sm: "gap-3 sm:gap-4",
+    md: "gap-4 sm:gap-6 lg:gap-8",
+    lg: "gap-6 sm:gap-8 lg:gap-10",
+    xl: "gap-8 sm:gap-10 lg:gap-12",
   };
 
-  const getColumnClasses = () => {
-    if (autoFit) {
-      return "grid";
+  let gridClasses = baseColClasses[cols];
+
+  // Custom breakpoint overrides
+  if (breakpoints) {
+    gridClasses = "grid-cols-1";
+    if (breakpoints.sm) {
+      gridClasses += ` sm:grid-cols-${breakpoints.sm}`;
     }
-
-    const { sm = 1, md = 2, lg = 3, xl = 4 } = columns;
-    return cn(
-      "grid",
-      `grid-cols-${sm}`,
-      md && `md:grid-cols-${md}`,
-      lg && `lg:grid-cols-${lg}`,
-      xl && `xl:grid-cols-${xl}`,
-    );
-  };
-
-  const style = autoFit
-    ? {
-        gridTemplateColumns: `repeat(auto-fit, minmax(${minItemWidth}, 1fr))`,
-      }
-    : undefined;
+    if (breakpoints.md) {
+      gridClasses += ` md:grid-cols-${breakpoints.md}`;
+    }
+    if (breakpoints.lg) {
+      gridClasses += ` lg:grid-cols-${breakpoints.lg}`;
+    }
+    if (breakpoints.xl) {
+      gridClasses += ` xl:grid-cols-${breakpoints.xl}`;
+    }
+  }
 
   return (
-    <div
-      className={cn(getColumnClasses(), gapClasses[gap], className)}
-      style={style}
-    >
+    <div className={cn("grid", gridClasses, gapClasses[gap], className)}>
       {children}
     </div>
   );

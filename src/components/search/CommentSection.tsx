@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   MessageSquare,
   ThumbsUp,
@@ -355,8 +356,8 @@ const CommentSection: React.FC<CommentSectionProps> = ({
   const sortedComments = sortComments(comments);
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="flex flex-col max-h-[60vh]">
+      <CardHeader className="flex-shrink-0">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <MessageSquare className="h-5 w-5" />
@@ -377,83 +378,85 @@ const CommentSection: React.FC<CommentSectionProps> = ({
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-6">
-        {/* New Comment Form */}
-        <div className="space-y-3">
-          {user ? (
-            <>
-              <Textarea
-                placeholder="Share your thoughts on this report..."
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                className="min-h-[100px]"
-              />
-              <div className="flex justify-between items-center">
-                <div className="text-xs text-gray-500">
-                  {newComment.length}/500 characters
+      <ScrollArea className="flex-1">
+        <CardContent className="space-y-6">
+          {/* New Comment Form */}
+          <div className="space-y-3">
+            {user ? (
+              <>
+                <Textarea
+                  placeholder="Share your thoughts on this report..."
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  className="min-h-[100px]"
+                />
+                <div className="flex justify-between items-center">
+                  <div className="text-xs text-gray-500">
+                    {newComment.length}/500 characters
+                  </div>
+                  <Button
+                    onClick={handleSubmitComment}
+                    disabled={!newComment.trim() || newComment.length > 500}
+                    className="bg-india-saffron hover:bg-saffron-600"
+                  >
+                    <Send className="h-4 w-4 mr-2" />
+                    Post Comment
+                  </Button>
                 </div>
-                <Button
-                  onClick={handleSubmitComment}
-                  disabled={!newComment.trim() || newComment.length > 500}
-                  className="bg-india-saffron hover:bg-saffron-600"
-                >
-                  <Send className="h-4 w-4 mr-2" />
-                  Post Comment
-                </Button>
-              </div>
-            </>
-          ) : (
-            <>
-              <Textarea
-                placeholder="Sign in to share your thoughts..."
-                disabled={true}
-                className="min-h-[100px] bg-gray-50"
-              />
-              <div className="flex justify-between items-center">
-                <div className="text-xs text-gray-500">
-                  Sign in to participate in discussions
+              </>
+            ) : (
+              <>
+                <Textarea
+                  placeholder="Sign in to share your thoughts..."
+                  disabled={true}
+                  className="min-h-[100px] bg-gray-50"
+                />
+                <div className="flex justify-between items-center">
+                  <div className="text-xs text-gray-500">
+                    Sign in to participate in discussions
+                  </div>
+                  <Button
+                    onClick={() => {
+                      setAuthMode("signup");
+                      setIsAuthModalOpen(true);
+                    }}
+                    className="bg-india-saffron hover:bg-saffron-600"
+                  >
+                    <Lock className="h-4 w-4 mr-2" />
+                    Sign in to Comment
+                  </Button>
                 </div>
-                <Button
-                  onClick={() => {
-                    setAuthMode("signup");
-                    setIsAuthModalOpen(true);
-                  }}
-                  className="bg-india-saffron hover:bg-saffron-600"
-                >
-                  <Lock className="h-4 w-4 mr-2" />
-                  Sign in to Comment
-                </Button>
-              </div>
-            </>
-          )}
-        </div>
+              </>
+            )}
+          </div>
 
-        <Separator />
+          <Separator />
 
-        {/* Comments List */}
-        <div className="space-y-6">
-          {sortedComments.length === 0 ? (
-            <div className="text-center py-8">
-              <MessageSquare className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-600 mb-2">
-                No comments yet
-              </h3>
-              <p className="text-gray-500">
-                Be the first to share your thoughts!
-              </p>
-            </div>
-          ) : (
-            sortedComments.map((comment) => (
-              <div key={comment.id}>
-                {renderComment(comment)}
-                {comment !== sortedComments[sortedComments.length - 1] && (
-                  <Separator className="mt-6" />
-                )}
+          {/* Comments List */}
+          <div className="space-y-6">
+            {sortedComments.length === 0 ? (
+              <div className="text-center py-8">
+                <MessageSquare className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                <h3 className="text-lg font-medium text-gray-600 mb-2">
+                  No comments yet
+                </h3>
+                <p className="text-gray-500">
+                  Be the first to share your thoughts!
+                </p>
               </div>
-            ))
-          )}
-        </div>
-      </CardContent>
+            ) : (
+              sortedComments.map((comment) => (
+                <div key={comment.id}>
+                  {renderComment(comment)}
+                  {comment !== sortedComments[sortedComments.length - 1] && (
+                    <Separator className="mt-6" />
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </CardContent>
+      </ScrollArea>
 
       {/* Authentication Modal */}
       <AuthModal

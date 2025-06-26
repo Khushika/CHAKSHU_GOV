@@ -17,14 +17,16 @@ import { LanguageProvider } from "@/components/language/LanguageProvider";
 const Education = () => {
   return (
     <LanguageProvider>
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50 scroll-smooth">
         <Header />
 
         <EducationHero />
 
-        <div className="container mx-auto px-4 py-12 space-y-16">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16 space-y-8 sm:space-y-12 lg:space-y-16">
           {/* Navigation Buttons */}
-          <NavigationButtons />
+          <div className="mb-6 sm:mb-8 lg:mb-12">
+            <NavigationButtons />
+          </div>
 
           <FraudIdentificationGuide />
 
@@ -32,14 +34,14 @@ const Education = () => {
 
           <DownloadableResources />
 
-          <div className="grid lg:grid-cols-2 gap-12">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 sm:gap-8 lg:gap-12">
             <SpecialProtectionTips />
             <ChildrenSafetySection />
           </div>
 
           <BusinessFraudGuide />
 
-          <div className="grid lg:grid-cols-2 gap-12">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 sm:gap-8 lg:gap-12">
             <LatestFraudAlerts />
             <GovernmentAdvisories />
           </div>

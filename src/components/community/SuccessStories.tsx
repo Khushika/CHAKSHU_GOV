@@ -365,8 +365,8 @@ const SuccessStories = () => {
 
       {/* Full Story Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] w-[95vw]">
-          <DialogHeader>
+        <DialogContent className="max-w-4xl max-h-[90vh] w-[95vw] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle className="text-2xl font-bold text-gray-900">
               {selectedStory?.title}
             </DialogTitle>
@@ -375,7 +375,7 @@ const SuccessStories = () => {
             </DialogDescription>
           </DialogHeader>
 
-          <ScrollArea className="flex-1 pr-6">
+          <ScrollArea className="flex-1 max-h-[calc(90vh-140px)] pr-6">
             {selectedStory && (
               <div className="space-y-6">
                 {/* Story Metadata */}

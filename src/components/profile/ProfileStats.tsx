@@ -76,85 +76,95 @@ const ProfileStats = () => {
   ];
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+    <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
       {/* Quick Stats */}
-      <Card className="lg:col-span-2">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5" />
+      <Card className="xl:col-span-2 transition-all duration-300 hover:shadow-lg">
+        <CardHeader className="pb-4 sm:pb-6">
+          <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+            <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5" />
             Your Impact
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center p-4 bg-blue-50 rounded-lg">
-              <div className="flex items-center justify-center mb-2">
-                <FileText className="h-6 w-6 text-blue-600" />
+        <CardContent className="p-4 sm:p-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+            <div className="text-center p-3 sm:p-4 lg:p-6 bg-blue-50 rounded-lg transition-all duration-200 hover:bg-blue-100">
+              <div className="flex items-center justify-center mb-2 sm:mb-3">
+                <FileText className="h-5 w-5 sm:h-6 sm:w-6 lg:h-8 lg:w-8 text-blue-600" />
               </div>
-              <div className="text-2xl font-bold text-blue-600">
+              <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-blue-600">
                 {stats.reportsSubmitted}
               </div>
-              <div className="text-sm text-blue-700">Reports Submitted</div>
+              <div className="text-xs sm:text-sm lg:text-base text-blue-700 font-medium">
+                Reports Submitted
+              </div>
               <div className="text-xs text-gray-500 mt-1">
                 {stats.reportsResolved} resolved
               </div>
             </div>
 
-            <div className="text-center p-4 bg-green-50 rounded-lg">
-              <div className="flex items-center justify-center mb-2">
-                <Star className="h-6 w-6 text-green-600" />
+            <div className="text-center p-3 sm:p-4 lg:p-6 bg-green-50 rounded-lg transition-all duration-200 hover:bg-green-100">
+              <div className="flex items-center justify-center mb-2 sm:mb-3">
+                <Star className="h-5 w-5 sm:h-6 sm:w-6 lg:h-8 lg:w-8 text-green-600" />
               </div>
-              <div className="text-2xl font-bold text-green-600">
+              <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-green-600">
                 {stats.trustScore}%
               </div>
-              <div className="text-sm text-green-700">Trust Score</div>
-              <div className="text-xs text-gray-500 mt-1">
-                <TrendingUp className="inline h-3 w-3 mr-1" />
+              <div className="text-xs sm:text-sm lg:text-base text-green-700 font-medium">
+                Trust Score
+              </div>
+              <div className="text-xs text-gray-500 mt-1 flex items-center justify-center gap-1">
+                <TrendingUp className="inline h-3 w-3" />
                 +5% this month
               </div>
             </div>
 
-            <div className="text-center p-4 bg-purple-50 rounded-lg">
-              <div className="flex items-center justify-center mb-2">
-                <Trophy className="h-6 w-6 text-purple-600" />
+            <div className="text-center p-3 sm:p-4 lg:p-6 bg-purple-50 rounded-lg transition-all duration-200 hover:bg-purple-100">
+              <div className="flex items-center justify-center mb-2 sm:mb-3">
+                <Trophy className="h-5 w-5 sm:h-6 sm:w-6 lg:h-8 lg:w-8 text-purple-600" />
               </div>
-              <div className="text-2xl font-bold text-purple-600">
+              <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-purple-600">
                 {stats.communityPoints}
               </div>
-              <div className="text-sm text-purple-700">Community Points</div>
+              <div className="text-xs sm:text-sm lg:text-base text-purple-700 font-medium">
+                Community Points
+              </div>
               <div className="text-xs text-gray-500 mt-1">Rank: Top 15%</div>
             </div>
 
-            <div className="text-center p-4 bg-yellow-50 rounded-lg">
-              <div className="flex items-center justify-center mb-2">
-                <MessageSquare className="h-6 w-6 text-yellow-600" />
+            <div className="text-center p-3 sm:p-4 lg:p-6 bg-yellow-50 rounded-lg transition-all duration-200 hover:bg-yellow-100">
+              <div className="flex items-center justify-center mb-2 sm:mb-3">
+                <MessageSquare className="h-5 w-5 sm:h-6 sm:w-6 lg:h-8 lg:w-8 text-yellow-600" />
               </div>
-              <div className="text-2xl font-bold text-yellow-600">
+              <div className="text-xl sm:text-2xl lg:text-3xl font-bold text-yellow-600">
                 {stats.helpfulVotes}
               </div>
-              <div className="text-sm text-yellow-700">Helpful Votes</div>
+              <div className="text-xs sm:text-sm lg:text-base text-yellow-700 font-medium">
+                Helpful Votes
+              </div>
               <div className="text-xs text-gray-500 mt-1">
                 {stats.responseRate}% response rate
               </div>
             </div>
           </div>
 
-          <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-            <div className="flex items-center justify-center gap-2">
-              <Clock className="h-4 w-4 text-gray-500" />
-              <span className="text-sm text-gray-600">
+          <div className="mt-4 sm:mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 text-center">
+            <div className="flex items-center justify-center gap-2 p-2 sm:p-3 rounded-lg bg-gray-50">
+              <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500 flex-shrink-0" />
+              <span className="text-xs sm:text-sm text-gray-600">
                 {stats.activeDays} active days
               </span>
             </div>
-            <div className="flex items-center justify-center gap-2">
-              <Trophy className="h-4 w-4 text-gray-500" />
-              <span className="text-sm text-gray-600">
+            <div className="flex items-center justify-center gap-2 p-2 sm:p-3 rounded-lg bg-gray-50">
+              <Trophy className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500 flex-shrink-0" />
+              <span className="text-xs sm:text-sm text-gray-600">
                 {stats.badgesEarned} badges earned
               </span>
             </div>
-            <div className="flex items-center justify-center gap-2">
-              <CheckCircle className="h-4 w-4 text-gray-500" />
-              <span className="text-sm text-gray-600">Verified member</span>
+            <div className="flex items-center justify-center gap-2 p-2 sm:p-3 rounded-lg bg-gray-50">
+              <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500 flex-shrink-0" />
+              <span className="text-xs sm:text-sm text-gray-600">
+                Verified member
+              </span>
             </div>
           </div>
         </CardContent>

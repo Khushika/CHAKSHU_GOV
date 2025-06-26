@@ -1,16 +1,21 @@
 /**
  * Comprehensive Database Service
  * Centralized service layer for all Supabase database operations
+ * Updated for fresh schema with full Supabase integration
  */
 
-import { supabase, isDemoMode } from "@/integrations/supabase/client";
+import {
+  supabase,
+  handleSupabaseError,
+  safeQuery,
+  isDemoMode,
+} from "@/integrations/supabase/client";
 import type {
   Database,
   Tables,
   TablesInsert,
   TablesUpdate,
 } from "@/integrations/supabase/types";
-import { toast } from "@/hooks/use-toast";
 
 // Type aliases for convenience
 type Report = Tables<"reports">;
@@ -35,13 +40,15 @@ type SupportTicketInsert = TablesInsert<"support_tickets">;
 
 type EducationArticle = Tables<"education_articles">;
 type FAQ = Tables<"faqs">;
+type FraudAlert = Tables<"fraud_alerts">;
 
-// Generic response type
+// Enhanced response type
 interface ServiceResponse<T> {
   data: T | null;
   error: string | null;
   success: boolean;
   message?: string;
+  count?: number;
 }
 
 /**
@@ -49,39 +56,35 @@ interface ServiceResponse<T> {
  */
 class DatabaseService {
   /**
-   * Generic query executor with error handling
+   * Generic query executor with error handling - now uses safeQuery helper
    */
   protected async executeQuery<T>(
     queryFn: () => Promise<any>,
     operation: string,
   ): Promise<ServiceResponse<T>> {
+    if (isDemoMode) {
+      console.log(
+        `Demo mode: ${operation} operation simulated (Supabase not configured)`,
+      );
+      return {
+        data: null,
+        error:
+          "Supabase not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file.",
+        success: false,
+        message: "Database operations require Supabase configuration",
+      };
+    }
+
     try {
-      if (isDemoMode) {
-        console.log(`Demo mode: ${operation} operation simulated`);
-        return {
-          data: null,
-          error: "Demo mode - database operations are simulated",
-          success: false,
-          message: "Database operations are disabled in demo mode",
-        };
-      }
-
-      const response = await queryFn();
-
-      if (response.error) {
-        console.error(`Database ${operation} error:`, response.error);
-        return {
-          data: null,
-          error: response.error.message || `Failed to ${operation}`,
-          success: false,
-        };
-      }
+      const result = await safeQuery(queryFn);
 
       return {
-        data: response.data,
-        error: null,
-        success: true,
-        message: `${operation} completed successfully`,
+        data: result.data,
+        error: result.error,
+        success: result.success,
+        message: result.success
+          ? `${operation} completed successfully`
+          : undefined,
       };
     } catch (error) {
       const message =
@@ -103,9 +106,20 @@ class DatabaseService {
    */
   async healthCheck(): Promise<ServiceResponse<boolean>> {
     return this.executeQuery(
-      () => supabase.from("reports").select("id").limit(1),
+      () => supabase.from("system_config").select("id").limit(1),
       "health check",
     );
+  }
+
+  /**
+   * Get current authenticated user
+   */
+  async getCurrentUser() {
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
+    return { user, error: error ? handleSupabaseError(error) : null };
   }
 }
 
@@ -243,23 +257,33 @@ class ReportsService extends DatabaseService {
   }
 
   /**
-   * Get report statistics
+   * Get comprehensive report statistics
    */
   async getStats(): Promise<
     ServiceResponse<{
       total: number;
       pending: number;
+      under_review: number;
+      investigating: number;
       resolved: number;
       rejected: number;
+      withdrawn: number;
+      escalated: number;
       totalAmount: number;
+      totalRecovered: number;
+      avgAmount: number;
       byFraudType: Record<string, number>;
       byLocation: Record<string, number>;
+      byPriority: Record<string, number>;
+      recentTrends: any[];
     }>
   > {
     return this.executeQuery(async () => {
       const result = await supabase
         .from("reports")
-        .select("status, amount_involved, fraud_type, city, state");
+        .select(
+          "status, amount_involved, recovery_amount, fraud_type, city, state, priority, created_at",
+        );
 
       if (result.error) return result;
 
@@ -267,17 +291,33 @@ class ReportsService extends DatabaseService {
       const stats = {
         total: reports.length,
         pending: reports.filter((r) => r.status === "pending").length,
+        under_review: reports.filter((r) => r.status === "under_review").length,
+        investigating: reports.filter((r) => r.status === "investigating")
+          .length,
         resolved: reports.filter((r) => r.status === "resolved").length,
         rejected: reports.filter((r) => r.status === "rejected").length,
+        withdrawn: reports.filter((r) => r.status === "withdrawn").length,
+        escalated: reports.filter((r) => r.status === "escalated").length,
         totalAmount: reports.reduce(
           (sum, r) => sum + (r.amount_involved || 0),
           0,
         ),
+        totalRecovered: reports.reduce(
+          (sum, r) => sum + (r.recovery_amount || 0),
+          0,
+        ),
+        avgAmount:
+          reports.length > 0
+            ? reports.reduce((sum, r) => sum + (r.amount_involved || 0), 0) /
+              reports.length
+            : 0,
         byFraudType: {} as Record<string, number>,
         byLocation: {} as Record<string, number>,
+        byPriority: {} as Record<string, number>,
+        recentTrends: [],
       };
 
-      // Calculate fraud type distribution
+      // Calculate distributions
       reports.forEach((report) => {
         stats.byFraudType[report.fraud_type] =
           (stats.byFraudType[report.fraud_type] || 0) + 1;
@@ -286,10 +326,57 @@ class ReportsService extends DatabaseService {
           stats.byLocation[report.state] =
             (stats.byLocation[report.state] || 0) + 1;
         }
+
+        if (report.priority) {
+          stats.byPriority[report.priority] =
+            (stats.byPriority[report.priority] || 0) + 1;
+        }
       });
 
       return { data: stats, error: null };
     }, "fetch report statistics");
+  }
+
+  /**
+   * Get report with evidence and status history
+   */
+  async getReportWithDetails(id: string): Promise<
+    ServiceResponse<
+      Report & {
+        evidence: ReportEvidence[];
+        status_history: any[];
+        interactions_count: number;
+      }
+    >
+  > {
+    return this.executeQuery(async () => {
+      const [reportResult, evidenceResult, historyResult, interactionsResult] =
+        await Promise.all([
+          supabase.from("reports").select("*").eq("id", id).single(),
+          supabase.from("report_evidence").select("*").eq("report_id", id),
+          supabase
+            .from("report_status_history")
+            .select("*")
+            .eq("report_id", id)
+            .order("created_at", { ascending: false }),
+          supabase
+            .from("community_interactions")
+            .select("id")
+            .eq("report_id", id),
+        ]);
+
+      if (reportResult.error) return reportResult;
+
+      return {
+        data: {
+          ...reportResult.data,
+          evidence: evidenceResult.data || [],
+          status_history: historyResult.data || [],
+          interactions_count: interactionsResult.data?.length || 0,
+        },
+        error: null,
+      };
+    }, "fetch detailed report");
   }
 }
 
@@ -298,7 +385,7 @@ class ReportsService extends DatabaseService {
  */
 class UserProfilesService extends DatabaseService {
   /**
-   * Get user profile
+   * Get user profile with extended information
    */
   async getProfile(userId: string): Promise<ServiceResponse<UserProfile>> {
     return this.executeQuery(
@@ -344,6 +431,108 @@ class UserProfilesService extends DatabaseService {
           .single(),
       "update profile picture",
     );
+  }
+
+  /**
+   * Get user activity summary
+   */
+  async getUserActivitySummary(userId: string): Promise<
+    ServiceResponse<{
+      total_reports: number;
+      total_interactions: number;
+      unread_notifications: number;
+      achievements_count: number;
+      last_login: string | null;
+    }>
+  > {
+    return this.executeQuery(async () => {
+      const result = await supabase
+        .from("user_activity_summary")
+        .select("*")
+        .eq("user_id", userId)
+        .single();
+
+      if (result.error) return result;
+
+      // Get achievements count separately
+      const achievementsResult = await supabase
+        .from("user_achievements")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId);
+
+      return {
+        data: {
+          ...result.data,
+          achievements_count: achievementsResult.count || 0,
+        },
+        error: null,
+      };
+    }, "fetch user activity summary");
+  }
+
+  /**
+   * Update notification preferences
+   */
+  async updateNotificationPreferences(
+    userId: string,
+    preferences: Record<string, any>,
+  ): Promise<ServiceResponse<UserProfile>> {
+    return this.executeQuery(
+      () =>
+        supabase
+          .from("user_profiles")
+          .update({
+            notification_preferences: preferences,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("user_id", userId)
+          .select()
+          .single(),
+      "update notification preferences",
+    );
+  }
+
+  /**
+   * Update privacy settings
+   */
+  async updatePrivacySettings(
+    userId: string,
+    settings: Record<string, any>,
+  ): Promise<ServiceResponse<UserProfile>> {
+    return this.executeQuery(
+      () =>
+        supabase
+          .from("user_profiles")
+          .update({
+            privacy_settings: settings,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("user_id", userId)
+          .select()
+          .single(),
+      "update privacy settings",
+    );
+  }
+
+  /**
+   * Check profile completion percentage
+   */
+  calculateProfileCompletion(profile: UserProfile): number {
+    const fields = [
+      "full_name",
+      "email",
+      "phone_number",
+      "date_of_birth",
+      "gender",
+      "occupation",
+      "city",
+      "state",
+    ];
+
+    const completedFields = fields.filter(
+      (field) => profile[field as keyof UserProfile],
+    );
+    return Math.round((completedFields.length / fields.length) * 100);
   }
 }
 
@@ -555,39 +744,82 @@ class EvidenceService extends DatabaseService {
     file: File,
     reportId: string,
     userId: string,
+    description?: string,
   ): Promise<ServiceResponse<{ fileUrl: string; evidence: ReportEvidence }>> {
     try {
-      if (isDemoMode) {
+      // Validate file size (10MB limit)
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSize) {
         return {
           data: null,
-          error: "File upload not available in demo mode",
+          error: "File size exceeds 10MB limit",
           success: false,
         };
       }
 
-      // Upload file to Supabase Storage
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${reportId}/${Date.now()}.${fileExt}`;
+      // Validate file type
+      const allowedTypes = [
+        "image/jpeg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+        "application/pdf",
+        "text/plain",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "audio/mpeg",
+        "audio/wav",
+        "video/mp4",
+        "video/quicktime",
+      ];
 
+      if (!allowedTypes.includes(file.type)) {
+        return {
+          data: null,
+          error: "File type not supported",
+          success: false,
+        };
+      }
+
+      // Generate secure filename
+      const fileExt = file.name.split(".").pop()?.toLowerCase();
+      const timestamp = Date.now();
+      const randomId = Math.random().toString(36).substring(2);
+      const fileName = `${reportId}/${timestamp}-${randomId}.${fileExt}`;
+
+      // Upload file to Supabase Storage
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from("evidence-files")
-        .upload(fileName, file);
+        .upload(fileName, file, {
+          cacheControl: "3600",
+          upsert: false,
+        });
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
+      // Get file URL (signed URL for security)
       const {
         data: { publicUrl },
       } = supabase.storage.from("evidence-files").getPublicUrl(fileName);
+
+      // Determine evidence type
+      let evidenceType = "other";
+      if (file.type.startsWith("image/")) evidenceType = "image";
+      else if (file.type.startsWith("video/")) evidenceType = "video";
+      else if (file.type.startsWith("audio/")) evidenceType = "audio";
+      else if (file.type === "application/pdf") evidenceType = "document";
 
       // Save evidence record
       const evidenceData: ReportEvidenceInsert = {
         report_id: reportId,
         file_name: file.name,
         file_path: uploadData.path,
+        file_url: publicUrl,
         file_size: file.size,
         file_type: fileExt || null,
         mime_type: file.type || null,
+        evidence_type: evidenceType,
+        description: description || null,
         uploaded_by: userId,
       };
 
@@ -613,7 +845,7 @@ class EvidenceService extends DatabaseService {
         error instanceof Error ? error.message : "File upload failed";
       return {
         data: null,
-        error: message,
+        error: handleSupabaseError(error),
         success: false,
       };
     }
@@ -826,6 +1058,66 @@ class FAQService extends DatabaseService {
 }
 
 /**
+ * Fraud Alerts Service
+ */
+class FraudAlertsService extends DatabaseService {
+  /**
+   * Get active fraud alerts
+   */
+  async getActiveAlerts(
+    limit: number = 10,
+  ): Promise<ServiceResponse<FraudAlert[]>> {
+    return this.executeQuery(
+      () =>
+        supabase
+          .from("fraud_alerts")
+          .select("*")
+          .eq("is_active", true)
+          .order("severity_level", { ascending: false })
+          .order("created_at", { ascending: false })
+          .limit(limit),
+      "fetch active fraud alerts",
+    );
+  }
+
+  /**
+   * Get alerts by region
+   */
+  async getAlertsByRegion(
+    region: string,
+  ): Promise<ServiceResponse<FraudAlert[]>> {
+    return this.executeQuery(
+      () =>
+        supabase
+          .from("fraud_alerts")
+          .select("*")
+          .eq("is_active", true)
+          .contains("affected_regions", [region])
+          .order("severity_level", { ascending: false }),
+      "fetch regional fraud alerts",
+    );
+  }
+
+  /**
+   * Get alerts by fraud type
+   */
+  async getAlertsByFraudType(
+    fraudType: string,
+  ): Promise<ServiceResponse<FraudAlert[]>> {
+    return this.executeQuery(
+      () =>
+        supabase
+          .from("fraud_alerts")
+          .select("*")
+          .eq("is_active", true)
+          .contains("fraud_types", [fraudType])
+          .order("severity_level", { ascending: false }),
+      "fetch fraud type alerts",
+    );
+  }
+}
+
+/**
  * Real-time Subscriptions Service
  */
 class RealtimeService {
@@ -835,12 +1127,7 @@ class RealtimeService {
    * Subscribe to report updates
    */
   subscribeToReports(callback: (payload: any) => void, userId?: string) {
-    if (isDemoMode) {
-      console.log("Real-time subscriptions not available in demo mode");
-      return () => {};
-    }
-
-    let channel = supabase
+    const channel = supabase
       .channel("reports-changes")
       .on(
         "postgres_changes",
@@ -866,12 +1153,7 @@ class RealtimeService {
    * Subscribe to notification updates
    */
   subscribeToNotifications(userId: string, callback: (payload: any) => void) {
-    if (isDemoMode) {
-      console.log("Real-time subscriptions not available in demo mode");
-      return () => {};
-    }
-
-    let channel = supabase
+    const channel = supabase
       .channel("notifications-changes")
       .on(
         "postgres_changes",
@@ -900,12 +1182,7 @@ class RealtimeService {
     reportId: string,
     callback: (payload: any) => void,
   ) {
-    if (isDemoMode) {
-      console.log("Real-time subscriptions not available in demo mode");
-      return () => {};
-    }
-
-    let channel = supabase
+    const channel = supabase
       .channel("community-interactions-changes")
       .on(
         "postgres_changes",
@@ -924,6 +1201,32 @@ class RealtimeService {
     return () => {
       channel.unsubscribe();
       this.subscriptions.delete(`community-${reportId}`);
+    };
+  }
+
+  /**
+   * Subscribe to fraud alerts
+   */
+  subscribeToFraudAlerts(callback: (payload: any) => void) {
+    const channel = supabase
+      .channel("fraud-alerts-changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "fraud_alerts",
+          filter: "is_active=eq.true",
+        },
+        callback,
+      )
+      .subscribe();
+
+    this.subscriptions.set("fraud-alerts", channel);
+
+    return () => {
+      channel.unsubscribe();
+      this.subscriptions.delete("fraud-alerts");
     };
   }
 
@@ -947,10 +1250,109 @@ export const evidenceService = new EvidenceService();
 export const supportTicketsService = new SupportTicketsService();
 export const educationService = new EducationService();
 export const faqService = new FAQService();
+export const fraudAlertsService = new FraudAlertsService();
 export const realtimeService = new RealtimeService();
 
 // Export database service for health checks
 export const databaseService = new DatabaseService();
+
+// Enhanced API helpers
+export const apiHelpers = {
+  /**
+   * Create a new fraud report with validation
+   */
+  async createReport(
+    reportData: ReportInsert,
+  ): Promise<ServiceResponse<Report>> {
+    // Validate required fields
+    if (!reportData.title?.trim()) {
+      return { data: null, error: "Report title is required", success: false };
+    }
+    if (!reportData.description?.trim()) {
+      return {
+        data: null,
+        error: "Report description is required",
+        success: false,
+      };
+    }
+    if (!reportData.fraud_type) {
+      return { data: null, error: "Fraud type is required", success: false };
+    }
+
+    return reportsService.create(reportData);
+  },
+
+  /**
+   * Get user's complete profile with activity
+   */
+  async getUserDashboard(userId: string): Promise<
+    ServiceResponse<{
+      profile: UserProfile;
+      activity: any;
+      reports: Report[];
+      notifications: Notification[];
+    }>
+  > {
+    try {
+      const [
+        profileResult,
+        activityResult,
+        reportsResult,
+        notificationsResult,
+      ] = await Promise.all([
+        userProfilesService.getProfile(userId),
+        userProfilesService.getUserActivitySummary(userId),
+        reportsService.getUserReports(userId),
+        notificationsService.getUserNotifications(userId, 10),
+      ]);
+
+      if (!profileResult.success) {
+        return { data: null, error: profileResult.error, success: false };
+      }
+
+      return {
+        data: {
+          profile: profileResult.data!,
+          activity: activityResult.data,
+          reports: reportsResult.data || [],
+          notifications: notificationsResult.data || [],
+        },
+        error: null,
+        success: true,
+      };
+    } catch (error) {
+      return {
+        data: null,
+        error:
+          error instanceof Error ? error.message : "Failed to load dashboard",
+        success: false,
+      };
+    }
+  },
+
+  /**
+   * Search reports with filters
+   */
+  async searchReports(query: {
+    text?: string;
+    fraudType?: string;
+    status?: string;
+    location?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<ServiceResponse<{ reports: Report[]; total: number }>> {
+    const filters: any = {};
+
+    if (query.fraudType) filters.fraud_type = query.fraudType;
+    if (query.status) filters.status = query.status;
+    if (query.dateFrom) filters.date_from = query.dateFrom;
+    if (query.dateTo) filters.date_to = query.dateTo;
+
+    return reportsService.getAll(filters, query.page || 1, query.limit || 20);
+  },
+};
 
 // Export types for use in components
 export type {
@@ -970,5 +1372,6 @@ export type {
   SupportTicketInsert,
   EducationArticle,
   FAQ,
+  FraudAlert,
   ServiceResponse,
 };

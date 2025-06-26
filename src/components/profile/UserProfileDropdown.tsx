@@ -40,6 +40,7 @@ import PrivacySettings from "./PrivacySettings";
 import ActivityHistory from "./ActivityHistory";
 import NotificationPreferences from "./NotificationPreferences";
 import ProfileStats from "./ProfileStats";
+import ProfileQuickActions from "./ProfileQuickActions";
 
 interface UserProfileDropdownProps {
   className?: string;
@@ -48,10 +49,11 @@ interface UserProfileDropdownProps {
 const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
   className,
 }) => {
-  const { user, signOut } = useAuth();
+  const { user, signOut, loading } = useAuth();
   const { t, isRTL } = useLanguage();
   const [isProfileDialogOpen, setIsProfileDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   const getUserInitials = (name?: string) => {
     if (!name) return "U";
@@ -64,7 +66,14 @@ const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
   };
 
   const handleSignOut = async () => {
-    await signOut();
+    try {
+      setIsSigningOut(true);
+      await signOut();
+    } catch (error) {
+      console.error("Error signing out:", error);
+    } finally {
+      setIsSigningOut(false);
+    }
   };
 
   if (!user) {
@@ -79,6 +88,26 @@ const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
     user.email?.split("@")[0] ||
     "User";
 
+  // Calculate profile completion percentage
+  const getProfileCompletion = () => {
+    let completion = 0;
+    const checks = [
+      user.email, // Email (required)
+      user.user_metadata?.full_name, // Name
+      user.user_metadata?.phone, // Phone
+      user.user_metadata?.avatar_url, // Avatar
+      user.user_metadata?.bio, // Bio
+    ];
+
+    checks.forEach((check) => {
+      if (check) completion += 20;
+    });
+
+    return Math.min(completion, 100);
+  };
+
+  const profileCompletion = getProfileCompletion();
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -92,6 +121,8 @@ const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
               {getUserInitials(displayName)}
             </AvatarFallback>
           </Avatar>
+          {/* Status indicator for new notifications or updates */}
+          <span className="absolute -top-1 -right-1 h-3 w-3 bg-green-400 border-2 border-white rounded-full"></span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -99,6 +130,7 @@ const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
         align={isRTL ? "start" : "end"}
         role="menu"
         aria-label={t.accessibility?.userMenu || "User menu"}
+        sideOffset={5}
       >
         {/* User Info Header */}
         <div
@@ -117,6 +149,14 @@ const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
               <p className="text-xs leading-none text-muted-foreground mt-1 truncate">
                 {user.email}
               </p>
+              <div className="flex items-center justify-between mt-2">
+                {user.user_metadata?.verified && (
+                  <p className="text-xs text-green-600">✓ Verified Account</p>
+                )}
+                <p className="text-xs text-gray-500">
+                  Profile: {profileCompletion}% complete
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -143,8 +183,8 @@ const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
                 <ChevronRight className="h-4 w-4" />
               </DropdownMenuItem>
             </DialogTrigger>
-            <DialogContent className="max-w-6xl max-h-[90vh] p-0">
-              <DialogHeader className="p-6 pb-0">
+            <DialogContent className="max-w-6xl max-h-[90vh] p-0 flex flex-col overflow-hidden">
+              <DialogHeader className="p-6 pb-4 flex-shrink-0 border-b">
                 <DialogTitle className="text-2xl font-bold">
                   User Profile
                 </DialogTitle>
@@ -154,84 +194,95 @@ const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="p-6 pt-4">
-                {/* Profile Stats Overview */}
-                <div className="mb-6">
-                  <ProfileStats />
-                </div>
+              <div className="flex-1 overflow-hidden">
+                <ScrollArea className="h-full px-6 py-4 modal-scroll">
+                  <div className="space-y-6">
+                    {/* Profile Stats Overview */}
+                    <div>
+                      <ProfileStats />
+                    </div>
 
-                {/* Main Profile Content */}
-                <Tabs
-                  value={activeTab}
-                  onValueChange={setActiveTab}
-                  className="w-full"
-                >
-                  <TabsList className="grid w-full grid-cols-6">
-                    <TabsTrigger
-                      value="overview"
-                      className="flex items-center gap-2"
-                    >
-                      <User className="h-4 w-4" />
-                      <span className="hidden sm:inline">Overview</span>
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="account"
-                      className="flex items-center gap-2"
-                    >
-                      <Settings className="h-4 w-4" />
-                      <span className="hidden sm:inline">Account</span>
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="security"
-                      className="flex items-center gap-2"
-                    >
-                      <Shield className="h-4 w-4" />
-                      <span className="hidden sm:inline">Security</span>
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="privacy"
-                      className="flex items-center gap-2"
-                    >
-                      <Lock className="h-4 w-4" />
-                      <span className="hidden sm:inline">Privacy</span>
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="notifications"
-                      className="flex items-center gap-2"
-                    >
-                      <Bell className="h-4 w-4" />
-                      <span className="hidden sm:inline">Notifications</span>
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="activity"
-                      className="flex items-center gap-2"
-                    >
-                      <Activity className="h-4 w-4" />
-                      <span className="hidden sm:inline">Activity</span>
-                    </TabsTrigger>
-                  </TabsList>
+                    {/* Quick Actions */}
+                    <div>
+                      <ProfileQuickActions />
+                    </div>
 
-                  <ScrollArea className="h-[60vh] mt-6">
-                    <TabsContent value="overview" className="mt-0">
-                      <ProfileOverview />
-                    </TabsContent>
-                    <TabsContent value="account" className="mt-0">
-                      <AccountSettings />
-                    </TabsContent>
-                    <TabsContent value="security" className="mt-0">
-                      <SecuritySettings />
-                    </TabsContent>
-                    <TabsContent value="privacy" className="mt-0">
-                      <PrivacySettings />
-                    </TabsContent>
-                    <TabsContent value="notifications" className="mt-0">
-                      <NotificationPreferences />
-                    </TabsContent>
-                    <TabsContent value="activity" className="mt-0">
-                      <ActivityHistory />
-                    </TabsContent>
-                  </ScrollArea>
-                </Tabs>
+                    {/* Main Profile Content */}
+                    <Tabs
+                      value={activeTab}
+                      onValueChange={setActiveTab}
+                      className="w-full"
+                    >
+                      <div className="sticky top-0 bg-white z-10 pb-4 border-b mb-4">
+                        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 gap-1">
+                          <TabsTrigger
+                            value="overview"
+                            className="flex items-center gap-1 text-xs sm:text-sm p-2"
+                          >
+                            <User className="h-4 w-4" />
+                            <span className="hidden sm:inline">Overview</span>
+                          </TabsTrigger>
+                          <TabsTrigger
+                            value="account"
+                            className="flex items-center gap-1 text-xs sm:text-sm p-2"
+                          >
+                            <Settings className="h-4 w-4" />
+                            <span className="hidden sm:inline">Account</span>
+                          </TabsTrigger>
+                          <TabsTrigger
+                            value="security"
+                            className="flex items-center gap-1 text-xs sm:text-sm p-2"
+                          >
+                            <Shield className="h-4 w-4" />
+                            <span className="hidden sm:inline">Security</span>
+                          </TabsTrigger>
+                          <TabsTrigger
+                            value="privacy"
+                            className="flex items-center gap-1 text-xs sm:text-sm p-2"
+                          >
+                            <Lock className="h-4 w-4" />
+                            <span className="hidden sm:inline">Privacy</span>
+                          </TabsTrigger>
+                          <TabsTrigger
+                            value="notifications"
+                            className="flex items-center gap-1 text-xs sm:text-sm p-2"
+                          >
+                            <Bell className="h-4 w-4" />
+                            <span className="hidden sm:inline">Notify</span>
+                          </TabsTrigger>
+                          <TabsTrigger
+                            value="activity"
+                            className="flex items-center gap-1 text-xs sm:text-sm p-2"
+                          >
+                            <Activity className="h-4 w-4" />
+                            <span className="hidden sm:inline">Activity</span>
+                          </TabsTrigger>
+                        </TabsList>
+                      </div>
+
+                      <div className="space-y-6">
+                        <TabsContent value="overview" className="mt-0">
+                          <ProfileOverview />
+                        </TabsContent>
+                        <TabsContent value="account" className="mt-0">
+                          <AccountSettings />
+                        </TabsContent>
+                        <TabsContent value="security" className="mt-0">
+                          <SecuritySettings />
+                        </TabsContent>
+                        <TabsContent value="privacy" className="mt-0">
+                          <PrivacySettings />
+                        </TabsContent>
+                        <TabsContent value="notifications" className="mt-0">
+                          <NotificationPreferences />
+                        </TabsContent>
+                        <TabsContent value="activity" className="mt-0">
+                          <ActivityHistory />
+                        </TabsContent>
+                      </div>
+                    </Tabs>
+                  </div>
+                </ScrollArea>
               </div>
             </DialogContent>
           </Dialog>
@@ -240,6 +291,22 @@ const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
         <DropdownMenuSeparator />
 
         {/* Quick Links */}
+        <DropdownMenuItem asChild>
+          <Link
+            to="/profile"
+            className={`flex items-center justify-between ${isRTL ? "flex-row-reverse" : ""}`}
+            role="menuitem"
+          >
+            <div
+              className={`flex items-center ${isRTL ? "flex-row-reverse" : ""}`}
+            >
+              <User className={`h-4 w-4 ${isRTL ? "ml-2" : "mr-2"}`} />
+              <span>Full Profile Page</span>
+            </div>
+            <ChevronRight className="h-4 w-4" />
+          </Link>
+        </DropdownMenuItem>
+
         <DropdownMenuItem asChild>
           <Link
             to="/dashboard"
@@ -267,11 +334,16 @@ const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
         {/* Sign Out */}
         <DropdownMenuItem
           onClick={handleSignOut}
+          disabled={isSigningOut}
           className={`flex items-center text-red-600 focus:text-red-600 ${isRTL ? "flex-row-reverse" : ""}`}
           role="menuitem"
         >
-          <LogOut className={`h-4 w-4 ${isRTL ? "ml-2" : "mr-2"}`} />
-          <span>{t.header?.logout || "Sign Out"}</span>
+          <LogOut
+            className={`h-4 w-4 ${isRTL ? "ml-2" : "mr-2"} ${isSigningOut ? "animate-spin" : ""}`}
+          />
+          <span>
+            {isSigningOut ? "Signing out..." : t.header?.logout || "Sign Out"}
+          </span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
