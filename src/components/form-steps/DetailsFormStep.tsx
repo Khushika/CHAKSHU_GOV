@@ -35,6 +35,9 @@ interface FormData {
   amount?: number;
   location?: string;
   additionalDetails?: string;
+  title?: string;
+  city?: string;
+  state?: string;
 }
 
 interface DetailsFormStepProps {
@@ -61,6 +64,30 @@ const DetailsFormStep: React.FC<DetailsFormStepProps> = ({
           encountered
         </p>
       </div>
+
+      {/* Report Title */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Report Summary</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div>
+            <Label htmlFor="title">Report Title (Optional)</Label>
+            <Input
+              id="title"
+              type="text"
+              placeholder="Brief summary of the fraud incident"
+              value={formData.title || ""}
+              onChange={(e) => onUpdateData("title", e.target.value)}
+              className="mt-1"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Provide a short, descriptive title for your report (auto-generated
+              if left blank)
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Contact Information */}
@@ -124,37 +151,102 @@ const DetailsFormStep: React.FC<DetailsFormStepProps> = ({
           <CardContent className="space-y-4">
             <div>
               <Label>Date & Time of Incident *</Label>
-              <Popover>
-                <PopoverTrigger asChild>
+              <div className="flex gap-2 mt-1">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "flex-1 justify-start text-left font-normal",
+                        !formData.dateTime && "text-muted-foreground",
+                        hasError("dateTime") && "border-red-500",
+                      )}
+                    >
+                      <Calendar className="mr-2 h-4 w-4" />
+                      {formData.dateTime
+                        ? format(formData.dateTime, "PPP")
+                        : "Select date"}
+                    </Button>
+                  </PopoverTrigger>
                   <Button
+                    type="button"
                     variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal mt-1",
-                      !formData.dateTime && "text-muted-foreground",
-                      hasError("dateTime") && "border-red-500",
-                    )}
+                    size="sm"
+                    onClick={() => {
+                      const today = new Date();
+                      onUpdateData("dateTime", today);
+                    }}
+                    className="px-3"
                   >
-                    <Calendar className="mr-2 h-4 w-4" />
-                    {formData.dateTime
-                      ? format(formData.dateTime, "PPP")
-                      : "Select date"}
+                    Today
                   </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarComponent
-                    mode="single"
-                    selected={formData.dateTime || undefined}
-                    onSelect={(date) => onUpdateData("dateTime", date)}
-                    initialFocus
-                    className="p-3 pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={formData.dateTime || undefined}
+                      onSelect={(date) => {
+                        // Ensure we set a proper Date object or null
+                        if (date) {
+                          // Set time to current time if not set, or keep existing time
+                          const newDate = new Date(date);
+                          if (formData.dateTime) {
+                            // Preserve existing time if user already selected a time
+                            newDate.setHours(formData.dateTime.getHours());
+                            newDate.setMinutes(formData.dateTime.getMinutes());
+                          } else {
+                            // Set to current time for new selection
+                            const now = new Date();
+                            newDate.setHours(now.getHours());
+                            newDate.setMinutes(now.getMinutes());
+                          }
+                          onUpdateData("dateTime", newDate);
+                        } else {
+                          onUpdateData("dateTime", null);
+                        }
+                      }}
+                      initialFocus
+                      className="p-3 pointer-events-auto"
+                      disabled={(date) => {
+                        // Disable future dates - can't report fraud that hasn't happened yet
+                        return date > new Date();
+                      }}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
               {errors.dateTime && (
                 <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
                   <AlertTriangle className="h-3 w-3" />
                   {errors.dateTime}
                 </p>
+              )}
+
+              {/* Time picker */}
+              {formData.dateTime && (
+                <div className="mt-3">
+                  <Label htmlFor="incidentTime">Time (Optional)</Label>
+                  <Input
+                    id="incidentTime"
+                    type="time"
+                    value={
+                      formData.dateTime
+                        ? format(formData.dateTime, "HH:mm")
+                        : ""
+                    }
+                    onChange={(e) => {
+                      if (formData.dateTime && e.target.value) {
+                        const [hours, minutes] = e.target.value.split(":");
+                        const newDate = new Date(formData.dateTime);
+                        newDate.setHours(parseInt(hours), parseInt(minutes));
+                        onUpdateData("dateTime", newDate);
+                      }
+                    }}
+                    className="mt-1 w-32"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Approximate time when the incident occurred
+                  </p>
+                </div>
               )}
             </div>
 

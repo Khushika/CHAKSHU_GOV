@@ -242,17 +242,46 @@ export function useUserReports(
   const { user } = useAuth();
   const actualUserId = userId || user?.id;
 
-  const fetcher = useCallback(() => {
+  const fetcher = useCallback(async () => {
     if (!actualUserId) {
       return Promise.resolve({ data: [], error: null, success: true });
     }
-    return reportsService.getUserReports(actualUserId);
+
+    try {
+      const result = await reportsService.getUserReports(actualUserId);
+
+      // If we get an infinite recursion error, provide helpful guidance
+      if (!result.success && result.error?.includes("infinite recursion")) {
+        console.error(
+          "RLS infinite recursion detected. Database migration needed.",
+        );
+        return {
+          data: [],
+          error:
+            "Database configuration error detected. Please contact support or check the console for migration instructions.",
+          success: false,
+          message:
+            "RLS policies need to be updated to fix circular references.",
+        };
+      }
+
+      return result;
+    } catch (error) {
+      console.error("Error fetching user reports:", error);
+      return {
+        data: [],
+        error:
+          error instanceof Error ? error.message : "Failed to fetch reports",
+        success: false,
+      };
+    }
   }, [actualUserId]);
 
   return useGenericDatabase(fetcher, [actualUserId], {
     autoRefresh: true,
     refreshInterval: 60000,
     enabled: !!actualUserId,
+    showToasts: false, // Don't show toast for every error, we'll handle it specially
     ...options,
   });
 }

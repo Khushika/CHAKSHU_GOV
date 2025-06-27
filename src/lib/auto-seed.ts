@@ -24,7 +24,7 @@ export async function autoSeedIfEmpty(): Promise<void> {
 
     // Check if database already has data
     const { data: existingReports, error } = await supabase
-      .from("reports")
+      .from("fraud_reports")
       .select("id")
       .limit(1);
 

@@ -35,7 +35,7 @@ export async function seedDatabase(): Promise<DatabaseSeedingResult> {
   try {
     // First, check if we have any existing data
     const { data: existingReports } = await supabase
-      .from("reports")
+      .from("fraud_reports")
       .select("id")
       .limit(1);
 
@@ -119,7 +119,7 @@ export async function seedDatabase(): Promise<DatabaseSeedingResult> {
     });
 
     const { data: insertedReports, error: reportsError } = await supabase
-      .from("reports")
+      .from("fraud_reports")
       .insert(reportsToSeed)
       .select();
 
@@ -373,7 +373,7 @@ export async function clearSeedData(): Promise<DatabaseSeedingResult> {
       .from("user_analytics_preferences")
       .delete()
       .eq("user_id", user.id);
-    await supabase.from("reports").delete().eq("user_id", user.id);
+    await supabase.from("fraud_reports").delete().eq("user_id", user.id);
 
     return {
       success: true,

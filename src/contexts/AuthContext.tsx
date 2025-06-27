@@ -1,23 +1,22 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { User, Session, AuthError } from "@supabase/supabase-js";
+import {
+  User as SupabaseUser,
+  Session,
+  AuthError,
+} from "@supabase/supabase-js";
 import { supabase, isDemoMode } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import type {
+  AuthContextType,
+  User,
+  SignUpData,
+  SignInData,
+  AuthResponse,
+  UpdatePasswordData,
+} from "@/types/auth";
 
-interface AuthContextType {
-  user: User | null;
-  session: Session | null;
-  loading: boolean;
-  signUp: (
-    email: string,
-    password: string,
-    fullName: string,
-  ) => Promise<{ error: AuthError | null }>;
-  signIn: (
-    email: string,
-    password: string,
-  ) => Promise<{ error: AuthError | null }>;
-  signOut: () => Promise<void>;
-  resetPassword: (email: string) => Promise<{ error: AuthError | null }>;
+interface AuthProviderProps {
+  children: React.ReactNode;
 }
 
 // Default context value to prevent undefined errors
@@ -29,6 +28,9 @@ const defaultAuthContext: AuthContextType = {
   signIn: async () => ({ error: null }),
   signOut: async () => {},
   resetPassword: async () => ({ error: null }),
+  updatePassword: async () => ({ error: null }),
+  updateProfile: async () => ({ error: null }),
+  deleteAccount: async () => ({ error: null }),
 };
 
 const AuthContext = createContext<AuthContextType>(defaultAuthContext);
@@ -37,7 +39,6 @@ export const useAuth = () => {
   const context = useContext(AuthContext);
 
   // Since we now have a default context, check if we're still in the default state
-  // This could indicate the hook is being used outside the provider
   if (context === defaultAuthContext) {
     console.warn(
       "useAuth: Using default context. Make sure component is wrapped with AuthProvider.",
@@ -47,20 +48,32 @@ export const useAuth = () => {
   return context;
 };
 
-interface AuthProviderProps {
-  children: React.ReactNode;
-}
-
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Convert Supabase user to our User type
+  const convertUser = (supabaseUser: SupabaseUser | null): User | null => {
+    if (!supabaseUser) return null;
+
+    return {
+      id: supabaseUser.id,
+      email: supabaseUser.email || "",
+      full_name: supabaseUser.user_metadata?.full_name || "",
+      phone_number: supabaseUser.user_metadata?.phone_number || "",
+      user_role: supabaseUser.user_metadata?.user_role || "citizen",
+      is_verified: supabaseUser.email_confirmed_at !== null,
+      created_at: supabaseUser.created_at,
+      updated_at: supabaseUser.updated_at || supabaseUser.created_at,
+    };
+  };
+
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      setUser(session?.user ?? null);
+      setUser(convertUser(session?.user ?? null));
       setLoading(false);
     });
 
@@ -69,7 +82,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSession(session);
-      setUser(session?.user ?? null);
+      setUser(convertUser(session?.user ?? null));
       setLoading(false);
 
       if (event === "SIGNED_IN") {
@@ -79,7 +92,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         });
       } else if (event === "SIGNED_OUT") {
         toast({
-          title: "Thank you!",
+          title: "Goodbye!",
           description: "You have been successfully logged out.",
         });
       }
@@ -88,7 +101,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, fullName: string) => {
+  const signUp = async (
+    email: string,
+    password: string,
+    fullName: string,
+  ): Promise<AuthResponse> => {
     try {
       setLoading(true);
 
@@ -106,51 +123,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setUser({
             id: "demo-user-" + Date.now(),
             email: email,
-            user_metadata: { full_name: fullName },
-            app_metadata: {},
-            aud: "authenticated",
+            full_name: fullName,
+            phone_number: "",
+            user_role: "citizen",
+            is_verified: false,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-          } as User);
+          });
         }, 1000);
 
         return { error: null };
       }
 
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
             full_name: fullName,
+            user_role: "citizen",
           },
         },
       });
-
-      // Check if it's a mock error (demo mode fallback)
-      if (error && error.message === "Demo mode active") {
-        toast({
-          title: "Demo Mode Active",
-          description:
-            "Authentication service is unavailable. Registration simulated successfully.",
-          variant: "default",
-        });
-
-        // Simulate successful registration in demo mode
-        setTimeout(() => {
-          setUser({
-            id: "demo-user-" + Date.now(),
-            email: email,
-            user_metadata: { full_name: fullName },
-            app_metadata: {},
-            aud: "authenticated",
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          } as User);
-        }, 1000);
-
-        return { error: null };
-      }
 
       if (error) {
         toast({
@@ -161,40 +155,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return { error };
       }
 
-      toast({
-        title: "Registration Successful!",
-        description: "Please check your email to verify your account.",
-      });
+      if (data.user && !data.session) {
+        toast({
+          title: "Registration Successful!",
+          description: "Please check your email to verify your account.",
+        });
+      }
 
-      return { error: null };
+      return { error: null, data };
     } catch (error) {
       const authError = error as AuthError;
+      console.error("Registration error:", authError);
 
-      // Handle network/fetch errors specifically
-      if (error instanceof TypeError && error.message.includes("fetch")) {
-        // Fallback to demo mode for network errors
-        toast({
-          title: "Demo Mode Active",
-          description:
-            "Network connection failed. Using demo mode - registration simulated successfully.",
-          variant: "default",
-        });
-
-        // Simulate successful registration in demo mode
-        setTimeout(() => {
-          setUser({
-            id: "demo-user-" + Date.now(),
-            email: email,
-            user_metadata: { full_name: fullName },
-            app_metadata: {},
-            aud: "authenticated",
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          } as User);
-        }, 1000);
-
-        return { error: null };
-      }
+      toast({
+        title: "Registration Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
 
       return { error: authError };
     } finally {
@@ -202,7 +179,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (
+    email: string,
+    password: string,
+  ): Promise<AuthResponse> => {
     try {
       setLoading(true);
 
@@ -220,46 +200,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setUser({
             id: "demo-user-" + Date.now(),
             email: email,
-            user_metadata: { full_name: "Demo User" },
-            app_metadata: {},
-            aud: "authenticated",
+            full_name: "Demo User",
+            phone_number: "",
+            user_role: "citizen",
+            is_verified: true,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
-          } as User);
+          });
         }, 1000);
 
         return { error: null };
       }
 
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-
-      // Check if it's a mock error (demo mode fallback)
-      if (error && error.message === "Demo mode active") {
-        toast({
-          title: "Demo Mode Active",
-          description:
-            "Authentication service is unavailable. Login simulated successfully.",
-          variant: "default",
-        });
-
-        // Simulate successful login in demo mode
-        setTimeout(() => {
-          setUser({
-            id: "demo-user-" + Date.now(),
-            email: email,
-            user_metadata: { full_name: "Demo User" },
-            app_metadata: {},
-            aud: "authenticated",
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          } as User);
-        }, 1000);
-
-        return { error: null };
-      }
 
       if (error) {
         toast({
@@ -270,35 +226,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return { error };
       }
 
-      return { error: null };
+      return { error: null, data };
     } catch (error) {
       const authError = error as AuthError;
+      console.error("Login error:", authError);
 
-      // Handle network/fetch errors specifically
-      if (error instanceof TypeError && error.message.includes("fetch")) {
-        // Fallback to demo mode for network errors
-        toast({
-          title: "Demo Mode Active",
-          description:
-            "Network connection failed. Using demo mode - login simulated successfully.",
-          variant: "default",
-        });
-
-        // Simulate successful login in demo mode
-        setTimeout(() => {
-          setUser({
-            id: "demo-user-" + Date.now(),
-            email: email,
-            user_metadata: { full_name: "Demo User" },
-            app_metadata: {},
-            aud: "authenticated",
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          } as User);
-        }, 1000);
-
-        return { error: null };
-      }
+      toast({
+        title: "Login Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
 
       return { error: authError };
     } finally {
@@ -324,7 +261,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const resetPassword = async (email: string) => {
+  const resetPassword = async (email: string): Promise<AuthResponse> => {
     try {
       // Handle demo mode
       if (isDemoMode) {
@@ -333,24 +270,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           description: "Password reset simulated successfully in demo mode.",
           variant: "default",
         });
-
         return { error: null };
       }
 
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
       });
-
-      // Check if it's a mock error (demo mode fallback)
-      if (error && error.message === "Demo mode active") {
-        toast({
-          title: "Demo Mode Active",
-          description: "Password reset simulated successfully.",
-          variant: "default",
-        });
-
-        return { error: null };
-      }
 
       if (error) {
         toast({
@@ -369,25 +294,158 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return { error: null };
     } catch (error) {
       const authError = error as AuthError;
+      console.error("Password reset error:", authError);
 
-      // Handle network/fetch errors specifically
-      if (error instanceof TypeError && error.message.includes("fetch")) {
-        // Fallback to demo mode for network errors
-        toast({
-          title: "Demo Mode Active",
-          description:
-            "Network connection failed. Password reset simulated successfully.",
-          variant: "default",
-        });
-
-        return { error: null };
-      }
+      toast({
+        title: "Password Reset Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
 
       return { error: authError };
     }
   };
 
-  const value = {
+  const updatePassword = async (
+    data: UpdatePasswordData,
+  ): Promise<AuthResponse> => {
+    try {
+      setLoading(true);
+
+      if (isDemoMode) {
+        toast({
+          title: "Demo Mode Active",
+          description: "Password update simulated successfully.",
+          variant: "default",
+        });
+        return { error: null };
+      }
+
+      const { error } = await supabase.auth.updateUser({
+        password: data.newPassword,
+      });
+
+      if (error) {
+        toast({
+          title: "Password Update Error",
+          description: error.message,
+          variant: "destructive",
+        });
+        return { error };
+      }
+
+      toast({
+        title: "Password Updated",
+        description: "Your password has been successfully updated.",
+      });
+
+      return { error: null };
+    } catch (error) {
+      const authError = error as AuthError;
+      console.error("Password update error:", authError);
+
+      toast({
+        title: "Password Update Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+
+      return { error: authError };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateProfile = async (data: Partial<User>): Promise<AuthResponse> => {
+    try {
+      setLoading(true);
+
+      if (isDemoMode) {
+        toast({
+          title: "Demo Mode Active",
+          description: "Profile update simulated successfully.",
+          variant: "default",
+        });
+        return { error: null };
+      }
+
+      const { error } = await supabase.auth.updateUser({
+        data: {
+          full_name: data.full_name,
+          phone_number: data.phone_number,
+        },
+      });
+
+      if (error) {
+        toast({
+          title: "Profile Update Error",
+          description: error.message,
+          variant: "destructive",
+        });
+        return { error };
+      }
+
+      toast({
+        title: "Profile Updated",
+        description: "Your profile has been successfully updated.",
+      });
+
+      return { error: null };
+    } catch (error) {
+      const authError = error as AuthError;
+      console.error("Profile update error:", authError);
+
+      toast({
+        title: "Profile Update Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+
+      return { error: authError };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteAccount = async (): Promise<AuthResponse> => {
+    try {
+      setLoading(true);
+
+      if (isDemoMode) {
+        toast({
+          title: "Demo Mode Active",
+          description: "Account deletion simulated successfully.",
+          variant: "default",
+        });
+        return { error: null };
+      }
+
+      // Note: Supabase doesn't have a direct delete user method for client-side
+      // This would typically be handled by a server-side function
+      toast({
+        title: "Account Deletion",
+        description: "Please contact support to delete your account.",
+        variant: "default",
+      });
+
+      return { error: null };
+    } catch (error) {
+      const authError = error as AuthError;
+      console.error("Account deletion error:", authError);
+
+      toast({
+        title: "Account Deletion Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+
+      return { error: authError };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const value: AuthContextType = {
     user,
     session,
     loading,
@@ -395,6 +453,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signIn,
     signOut,
     resetPassword,
+    updatePassword,
+    updateProfile,
+    deleteAccount,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

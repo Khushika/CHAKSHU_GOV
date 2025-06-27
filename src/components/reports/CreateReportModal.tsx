@@ -114,7 +114,7 @@ const CreateReportModal = ({
         };
       }
 
-      const { error } = await supabase.from("reports").insert(reportData);
+      const { error } = await supabase.from("fraud_reports").insert(reportData);
 
       if (error) throw error;
 
