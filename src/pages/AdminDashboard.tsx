@@ -18,6 +18,7 @@ import ThirdPartyIntegrations from "@/components/admin/ThirdPartyIntegrations";
 import RealTimeSyncMonitor from "@/components/admin/RealTimeSyncMonitor";
 import CaseEscalationSystem from "@/components/admin/CaseEscalationSystem";
 import ComplianceMonitor from "@/components/admin/ComplianceMonitor";
+import DatabaseStatus from "@/components/common/DatabaseStatus";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const AdminDashboard = () => {
@@ -37,6 +38,10 @@ const AdminDashboard = () => {
 
         <div className="mb-8">
           <AdminOverviewStats />
+        </div>
+
+        <div className="mb-6">
+          <DatabaseStatus showDetails={true} />
         </div>
 
         <Tabs defaultValue="reports" className="space-y-6">

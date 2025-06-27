@@ -90,8 +90,8 @@ export function useAdminStats() {
 
       // Fetch reports statistics
       const { data: reportsData, error: reportsError } = await supabase
-        .from("reports")
-        .select("status, amount_involved, created_at");
+        .from("fraud_reports")
+        .select("status, created_at");
 
       if (reportsError) throw reportsError;
 
@@ -223,15 +223,14 @@ export function useAdminReports() {
       setError(null);
 
       const { data, error: fetchError } = await supabase
-        .from("reports")
+        .from("fraud_reports")
         .select(
           `
           id,
-          title,
           description,
-          fraud_type,
+          report_type,
+          fraud_category,
           status,
-          amount_involved,
           currency,
           city,
           state,
@@ -267,11 +266,10 @@ export function useAdminReports() {
   ) => {
     try {
       const { error } = await supabase
-        .from("reports")
+        .from("fraud_reports")
         .update({
           status: newStatus,
           updated_at: new Date().toISOString(),
-          authority_comments: comments,
         })
         .eq("id", reportId);
 
@@ -355,7 +353,7 @@ export function useAdminUsers() {
 
       // Get reports count per user
       const { data: reportCounts, error: reportsError } = await supabase
-        .from("reports")
+        .from("fraud_reports")
         .select("user_id")
         .not("user_id", "is", null);
 

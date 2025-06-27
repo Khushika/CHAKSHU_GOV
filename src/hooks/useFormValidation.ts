@@ -243,14 +243,13 @@ export const enhancedValidations = {
     required: true,
     custom: (value: string) => {
       const validTypes = [
-        "phishing",
+        "phone_call",
         "sms_fraud",
-        "call_fraud",
-        "email_spam",
-        "investment_scam",
-        "lottery_scam",
-        "tech_support_scam",
-        "romance_scam",
+        "email_phishing",
+        "online_fraud",
+        "financial_fraud",
+        "identity_theft",
+        "job_fraud",
         "other",
       ];
       if (!validTypes.includes(value))

@@ -225,7 +225,10 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader className="flex-shrink-0">
-          <div className="flex items-start space-x-4">
+          <DialogTitle className="text-xl leading-tight">
+            {post.title}
+          </DialogTitle>
+          <div className="flex items-start space-x-4 mt-4">
             <Avatar className="h-12 w-12">
               <div className="w-full h-full bg-gradient-to-br from-india-saffron to-saffron-600 flex items-center justify-center text-white font-semibold">
                 {post.author.charAt(0)}
@@ -247,9 +250,6 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({
                   {post.timeAgo}
                 </div>
               </div>
-              <DialogTitle className="text-xl leading-tight">
-                {post.title}
-              </DialogTitle>
             </div>
           </div>
         </DialogHeader>
